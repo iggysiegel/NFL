@@ -1,0 +1,6 @@
+.DS_Store
+.ipynb_checkpoints
+__pycache__/
+
+# Ignore data engineering files
+data/data_engineering_*.csv
