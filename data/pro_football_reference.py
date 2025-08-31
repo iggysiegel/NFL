@@ -168,11 +168,13 @@ def scrape_game_info(soup: BeautifulSoup) -> dict:
             game_info["attendance"] = int(td.text.replace(",", ""))
         elif field_name == "vegas line":
             vegas_favorite = " ".join(td.text.split()[0:-1])
-            vegas_line = float(td.text.split()[-1])
+            vegas_line = td.text.split()[-1]
             if vegas_favorite == home_team:
-                game_info["home_line"] = vegas_line
+                game_info["home_line"] = float(vegas_line)
             elif vegas_favorite == away_team:
-                game_info["home_line"] = -vegas_line
+                game_info["home_line"] = -float(vegas_line)
+            elif vegas_line.lower() == "pick":
+                game_info["home_line"] = 0.0
             else:
                 raise ValueError("Vegas favorite does not match either team.")
         elif field_name == "over/under":
@@ -375,7 +377,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    for season_to_scrape in range(args.start_year, args.end_year + 1):
+    for season_to_scrape in range(args.start_season, args.end_season + 1):
         print(f"Scraping season {season_to_scrape}...", flush=True)
         season_to_scrape_data = scrape_season(season_to_scrape)
 
