@@ -3,5 +3,6 @@
 __pycache__/
 .flake8
 
-# Ignore data engineering files
-data/data_engineering_*.csv
+# Ignore data files
+data/**/*.json
+historic/data/data_engineering_*.csv
