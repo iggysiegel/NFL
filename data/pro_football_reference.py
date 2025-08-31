@@ -13,7 +13,7 @@ Arguments:
 """
 
 # Imports, constants
-# ---------------------------
+# ------------------
 import argparse
 import datetime
 import json
