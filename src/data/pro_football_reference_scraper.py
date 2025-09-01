@@ -1,22 +1,24 @@
-"""Pro Football Reference NFL Scraper.
+"""A Pro Football Reference NFL Scraper.
 
-Scrapes NFL seasons from Pro Football Reference and saves each season's
-data as a JSON file. Each JSON file contains a list of dictionaries,
-where each dictionary represents a single game and its stats.
+This module provides reusable functions to scrape NFL season data from
+Pro Football Reference. It collects game-level information, team box
+score summaries, and expected points statistics, along with unique
+game_id keys.
 
 Usage:
-    python pro_football_reference.py --start_season 2010 --end_season 2015
+    from src.data.pro_football_reference_scraper import scrape_season
 
-Arguments:
-    --start_season    First season to scrape (inclusive).
-    --end_season      Last season to scrape (inclusive).
+    # Process a single season
+    scrape_season(2024)
+
+Notes:
+- Team abbreviations are standardized for downstream processing.
+- Output is JSONs with consistent schema across seasons.
 """
 
 # Imports, constants
 # ------------------
-import argparse
 import datetime
-import json
 import random
 import re
 import time
@@ -24,9 +26,8 @@ import time
 import cloudscraper
 from bs4 import BeautifulSoup
 
-
 scraper = cloudscraper.create_scraper()
-team_hrefs = {
+TEAM_HREFS = {
     "Phoenix Cardinals": "crd",
     "Arizona Cardinals": "crd",
     "Atlanta Falcons": "atl",
@@ -82,8 +83,7 @@ def get_soup(game_url: str) -> BeautifulSoup:
 
 
 def flatten_dict(d: dict, home_team: str, away_team: str) -> dict:
-    """
-    Helper function to flatten a nested dictionary so that keys are prefixed
+    """Helper function to flatten a nested dictionary so that keys are prefixed
     with 'home_' or 'away_'.
 
     Args:
@@ -111,10 +111,10 @@ def scrape_team_names(soup: BeautifulSoup) -> list[str]:
     """Scrape the home and away team names for a single game.
 
     Args:
-        soup: BeautifulSoup object of the game page.
+        soup: BeautifulSoup object of the game page
 
     Returns:
-        A list containing the home and away team names.
+        A list containing the home and away team names
     """
     team_names = soup.select('#inner_nav a[href^="/teams/"]')
     home_team = team_names[0].text.split("Schedule")[0].strip()
@@ -126,11 +126,11 @@ def scrape_game_info(soup: BeautifulSoup) -> dict:
     """Scrape key game information for a single game.
 
     Args:
-        soup: BeautifulSoup object of the game page.
+        soup: BeautifulSoup object of the game page
 
     Returns:
         game_info: Dictionary containing home and away teams, game metadata,
-        (roof, surface, weather, attendance), home line, and over/under.
+        (roof, surface, weather, attendance), home line, and over/under
     """
     # Initialize dictionary with all expected keys as None
     game_info = {
@@ -146,8 +146,8 @@ def scrape_game_info(soup: BeautifulSoup) -> dict:
 
     # Scrape home and away teams
     home_team, away_team = scrape_team_names(soup)
-    game_info["home_team"] = team_hrefs[home_team]
-    game_info["away_team"] = team_hrefs[away_team]
+    game_info["home_team"] = TEAM_HREFS[home_team]
+    game_info["away_team"] = TEAM_HREFS[away_team]
 
     # Scrape game metadata and betting lines
     table = soup.find("table", id="game_info")
@@ -187,11 +187,11 @@ def scrape_expected_points_summary(soup: BeautifulSoup) -> dict:
     """Scrape expected points summary for a single game.
 
     Args:
-        soup: BeautifulSoup object of the game page.
+        soup: BeautifulSoup object of the game page
 
     Returns:
         expected_points: Dictionary containing expected points data for each
-        team, keyed by team abbreviation.
+        team, keyed by team abbreviation
     """
     table = soup.find("table", id="expected_points")
     expected_points = {}
@@ -204,7 +204,7 @@ def scrape_expected_points_summary(soup: BeautifulSoup) -> dict:
 
         # Map team name to abbreviation
         team_name = th.text.strip()
-        for key, value in team_hrefs.items():
+        for key, value in TEAM_HREFS.items():
             if team_name in key:
                 team_abbr = value
                 break
@@ -221,27 +221,27 @@ def scrape_team_stats(soup: BeautifulSoup) -> dict:
     """Scrape team stats for a single game.
 
     Args:
-        soup: BeautifulSoup object of the game page.
+        soup: BeautifulSoup object of the game page
 
     Returns:
         team_stats: Dictionary containing team stats for each team,
-        keyed by team abbreviation.
+        keyed by team abbreviation
     """
     table = soup.find("table", id="team_stats")
     team_stats = {}
 
     # Scrape team names
     home_team, away_team = scrape_team_names(soup)
-    team_stats[team_hrefs[home_team]] = {}
-    team_stats[team_hrefs[away_team]] = {}
+    team_stats[TEAM_HREFS[home_team]] = {}
+    team_stats[TEAM_HREFS[away_team]] = {}
 
     # Scrape the stat name and home / away values
     for row in table.find("tbody").find_all("tr"):
         stat_name = row.find("th").text.strip().lower()
         home_value = row.find("td", {"data-stat": "home_stat"}).text
         away_value = row.find("td", {"data-stat": "vis_stat"}).text
-        team_stats[team_hrefs[home_team]][stat_name] = home_value
-        team_stats[team_hrefs[away_team]][stat_name] = away_value
+        team_stats[TEAM_HREFS[home_team]][stat_name] = home_value
+        team_stats[TEAM_HREFS[away_team]][stat_name] = away_value
 
     return team_stats
 
@@ -249,7 +249,14 @@ def scrape_team_stats(soup: BeautifulSoup) -> dict:
 # Multi-game / multi-week helpers
 # -------------------------------
 def get_number_of_weeks(season: int) -> int:
-    """Return the number of completed weeks in a season."""
+    """Return the number of completed weeks in a season.
+
+    Args:
+        season: Year of the NFL season to calculate
+
+    Returns:
+        weeks: Number of completed weeks in season
+    """
     # Expected weeks
     if season >= 2021:
         expected_weeks = 22
@@ -280,7 +287,15 @@ def get_number_of_weeks(season: int) -> int:
 
 
 def get_week_links(season: int, week: int) -> list[str]:
-    """Get the links to all games in a single week."""
+    """Get the links to all games in a single week.
+
+    Args:
+        season: Year of the NFL season to calculate
+        week: Week of the NFL season to calculate
+
+    Returns:
+        A list of all NFL game links in a single week
+    """
     url = f"https://www.pro-football-reference.com/years/{season}/" f"week_{week}.htm"
     response = scraper.get(url)
 
@@ -300,7 +315,14 @@ def get_week_links(season: int, week: int) -> list[str]:
 
 
 def get_season_links(season: int) -> list[str]:
-    """Get the links to all games in a season."""
+    """Get the links to all games in a season.
+
+    Args:
+        season: Year of the NFL season to calculate
+
+    Returns:
+        season_links: A list of all NFL game links for a single season
+    """
     season_links = []
 
     number_of_weeks = get_number_of_weeks(season)
@@ -319,7 +341,7 @@ def scrape_season(season: int) -> list[dict]:
     """Scrape all games in a single season.
 
     Args:
-        season: Year of the NFL season to scrape.
+        season: Year of the NFL season to scrape
 
     Returns:
         season_data: List of dictionaries, each containing a single game.
@@ -360,28 +382,3 @@ def scrape_season(season: int) -> list[dict]:
             continue
 
     return season_data
-
-
-# Run the scraper from the command line
-# -------------------------------------
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Scrape NFL seasons from Pro Football Reference"
-    )
-    parser.add_argument(
-        "--start_season", type=int, required=True, help="First season to scrape"
-    )
-    parser.add_argument(
-        "--end_season", type=int, required=True, help="Last season to scrape"
-    )
-
-    args = parser.parse_args()
-
-    for season_to_scrape in range(args.start_season, args.end_season + 1):
-        print(f"Scraping season {season_to_scrape}...", flush=True)
-        season_to_scrape_data = scrape_season(season_to_scrape)
-
-        with open(
-            f"raw/pro_football_reference_{season_to_scrape}.json", "w", encoding="utf-8"
-        ) as f:
-            json.dump(season_to_scrape_data, f, indent=2)
