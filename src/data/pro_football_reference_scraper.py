@@ -26,7 +26,7 @@ import time
 import cloudscraper
 from bs4 import BeautifulSoup
 
-scraper = cloudscraper.create_scraper()
+SCRAPER = cloudscraper.create_scraper()
 TEAM_HREFS = {
     "Phoenix Cardinals": "crd",
     "Arizona Cardinals": "crd",
@@ -76,7 +76,7 @@ TEAM_HREFS = {
 # -----------------
 def get_soup(game_url: str) -> BeautifulSoup:
     """Return BeautifulSoup object for a given game URL."""
-    response = scraper.get(game_url).text
+    response = SCRAPER.get(game_url).text
     clean_response = re.sub(r"<!--|-->", "", response)
     soup = BeautifulSoup(clean_response, "lxml")
     return soup
@@ -276,7 +276,7 @@ def get_number_of_weeks(season: int) -> int:
             f"https://www.pro-football-reference.com/years/{season}/"
             f"week_{weeks + 1}.htm"
         )
-        response = scraper.get(url)
+        response = SCRAPER.get(url)
         title = response.text.split("<title>")[1].split("</title>")[0]
         if "Preview" in title:
             break
@@ -297,7 +297,7 @@ def get_week_links(season: int, week: int) -> list[str]:
         A list of all NFL game links in a single week
     """
     url = f"https://www.pro-football-reference.com/years/{season}/" f"week_{week}.htm"
-    response = scraper.get(url)
+    response = SCRAPER.get(url)
 
     if response.status_code != 200:
         print(
