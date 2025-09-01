@@ -1,1 +1,1 @@
-# NFL Machine Learning Sports Betting
+# NFL Machine Learning

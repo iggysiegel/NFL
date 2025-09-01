@@ -1,9 +1,13 @@
+# OS / IDE junk
 .DS_Store
 .ipynb_checkpoints
 __pycache__/
 .flake8
 
-# Ignore data files
-data/**/*.json
-data/**/*.csv
-historic/data/data_engineering_*.csv
+# Data files
+data/raw/
+data/processed/
+data/features/
+
+# Archive
+archive/
