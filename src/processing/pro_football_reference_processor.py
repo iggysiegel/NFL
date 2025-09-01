@@ -1,13 +1,13 @@
-"""Clean Pro Football Reference raw data.
+"""Process Pro Football Reference raw data.
 
 This module provides reusable functions to clean Pro Football Reference
 raw data.
 
 Usage:
-    from src.processing.pro_football_reference_cleaner import clean_data
+    from src.processing.pro_football_reference_processor import clean_data
 
     # Process a raw dataframe
-    cleaned_df = clean_data(raw_df)
+    processed_df = process_data(raw_df)
 
 Notes:
 - A future version will include the ability to handle weather data.
@@ -126,7 +126,7 @@ def clean_dash_column(df: pd.DataFrame, col_to_split: str, new_cols: list[str]) 
 
 # High-level function
 # -------------------
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+def process_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans a raw Pro Football Reference dataframe by standardizing column names,
     normalizing categorical variables, and splitting dash-separated statistics into

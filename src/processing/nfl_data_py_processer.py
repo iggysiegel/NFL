@@ -1,13 +1,13 @@
-"""Clean nfl_data_py raw data.
+"""Process nfl_data_py raw data.
 
 This module provides reusable functions to clean and transform
 nfl_data_py raw data into a structured format.
 
 Usage:
-    from src.processing.nfl_data_py_cleaner import clean_data
+    from src.processing.nfl_data_py_processer import process_data
 
     # Process a raw dataframe
-    cleaned_df = clean_data(raw_df)
+    processed_df = process_data(raw_df)
 
 Notes:
 - Future versions may include additional transformations
@@ -17,7 +17,7 @@ Notes:
 import pandas as pd
 
 
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+def process_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans a raw nfl_data_py play-by-play dataframe into a game-level dataframe.
 

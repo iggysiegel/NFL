@@ -1,4 +1,4 @@
-"""Raw Data Scraper: scrape_raw_data.py.
+"""Raw Data Scraper: scrape_data.py.
 
 Scrape NFL data from multiple sources (e.g., Pro Football Reference, nfl_data_py)
 and save raw data in the raw data directory.
@@ -9,7 +9,7 @@ Output:
 
 Usage:
     From the project root, run:
-        python -m scripts.scrape_raw_data --start_season <START> --end_season <END>
+        python -m scripts.scrape_data --start_season <START> --end_season <END>
 
 Arguments:
     --start_season    First season to scrape (inclusive).
