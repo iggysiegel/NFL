@@ -24,6 +24,7 @@ import re
 import time
 
 import cloudscraper
+import requests
 from bs4 import BeautifulSoup
 
 SCRAPER = cloudscraper.create_scraper()
@@ -377,7 +378,7 @@ def scrape_season(season: int) -> list[dict]:
 
             time.sleep(random.uniform(1, 3))
 
-        except Exception as e:  # Too general exception
+        except (requests.exceptions.RequestException, KeyError, ValueError) as e:
             print(f"Failed to scrape {game_url}: {e}", flush=True)
             continue
 
