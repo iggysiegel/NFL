@@ -149,6 +149,10 @@ def process_data(df: pd.DataFrame) -> pd.DataFrame:
             "away_final_score",
             "home_posteam_score_max_def",
             "away_posteam_score_max_def",
+            "home_game_id_def",
+            "home_home_team_def",
+            "away_game_id_def",
+            "away_home_team_def",
         ]
     ]
     final_df = final_df[cols]
