@@ -4,7 +4,7 @@ This module provides reusable functions to clean Pro Football Reference
 raw data.
 
 Usage:
-    from src.processing.pro_football_reference_processor import clean_data
+    from src.processing.pro_football_reference_processor import process_data
 
     # Process a raw dataframe
     processed_df = process_data(raw_df)
