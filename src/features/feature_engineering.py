@@ -21,6 +21,8 @@ import re
 
 import pandas as pd
 
+from .contextual_features import add_contextual_features
+
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESS_DATA_DIR = os.path.join(MODULE_DIR, "../../data/processed")
 METADATA_FEATURES = [
@@ -342,9 +344,16 @@ def main(
         pd.DataFrame: Engineered feature DataFrame.
     """
     df_processed = read_data(start_season, end_season, process_data_dir)
+    df_contextual = add_contextual_features(df_processed)
     df_team_game = convert_to_team_game(df_processed)
     df_ewa = apply_ewa(df_team_game, revert, span)
     df_ewa_game = convert_to_game(df_ewa, df_processed)
     df_engineer = engineer_features(df_ewa_game)
 
-    return df_engineer
+    cols_to_use = [
+        c
+        for c in df_engineer.columns
+        if c not in df_contextual.columns or c == "game_id"
+    ]
+    df_merged = df_engineer[cols_to_use].merge(df_contextual, on="game_id", how="inner")
+    return df_merged
