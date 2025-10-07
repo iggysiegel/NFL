@@ -105,20 +105,66 @@ class NflWeatherScraper:
             A list of full URLs to all games in the season.
         """
         # List of NFLWeather.com week names in the season
-        if season >= 2021:
-            expected_weeks = 22
-        elif season >= 2009:
-            expected_weeks = 21
-        else:
+        weeks_list = []
+        if season < 2009:
             raise ValueError(
                 "Warning: Data before 2009 may be incomplete or inaccurate."
             )
-        weeks_list = []
-        for i in list(range(1, expected_weeks - 3)):
-            weeks_list.append(f"week-{i}")
-        weeks_list.extend(
-            ["wild-card", "divisional-round", "conference-championship", "superbowl"]
-        )
+        elif season == 2010:
+            for i in range(1, 18):
+                weeks_list.append(f"week-{i}-2")
+            weeks_list.extend(
+                [
+                    "wildcard-weekend-2",
+                    "divisional-playoffs-2",
+                    "conf-championships-2",
+                    "superbowl-2",
+                ]
+            )
+        elif season < 2019:
+            for i in range(1, 18):
+                weeks_list.append(f"week-{i}")
+            weeks_list.extend(
+                [
+                    "wildcard-weekend",
+                    "divisional-playoffs",
+                    "conf-championships",
+                    "superbowl",
+                ]
+            )
+        elif season < 2021:
+            for i in range(1, 18):
+                weeks_list.append(f"week-{i}")
+            weeks_list.extend(
+                [
+                    "wildcard-weekend",
+                    "divisional-playoffs",
+                    "%20conf-championships",
+                    "superbowl",
+                ]
+            )
+        elif season < 2023:
+            for i in range(1, 19):
+                weeks_list.append(f"week-{i}")
+            weeks_list.extend(
+                [
+                    "wildcard-weekend",
+                    "divisional-playoffs",
+                    "%20conf-championships",
+                    "superbowl",
+                ]
+            )
+        else:
+            for i in range(1, 19):
+                weeks_list.append(f"week-{i}")
+            weeks_list.extend(
+                [
+                    "wild-card",
+                    "divisional-round",
+                    "conference-championships",
+                    "superbowl",
+                ]
+            )
 
         # List of all game URLs in the season
         season_urls = []
