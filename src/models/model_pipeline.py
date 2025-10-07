@@ -1,10 +1,9 @@
 """Machine learning model pipeline for NFL game prediction.
 
 This module provides a full workflow for preparing data, performing
-hyperparameter optimization with Optuna, training XGBoost models,
-and generating out-of-sample predictions. It supports both direct
-modeling of game results and residual modeling (predicting deviations
-from a baseline metric such as ELO).
+hyperparameter optimization with Optuna, and generating out-of-sample predictions.
+It supports both direct modeling of game results and residual modeling
+(predicting deviations from a baseline metric such as the Vegas line).
 
 Usage:
     from src.models.model_pipeline import main
@@ -17,15 +16,12 @@ Usage:
         model_class="XGB",
         n_trials=50,
         target_type="residual",
-        baseline_col="elo_diff",
+        baseline_col="home_line",
     )
 
 Notes:
-- Current implementation supports XGBoost regressors only.
 - Cross-validation is performed using a rolling-season approach
   to respect the temporal order of games.
-- Future versions may include additional model classes and
-  advanced ensemble methods.
 """
 
 import numpy as np
@@ -33,6 +29,8 @@ import optuna
 import pandas as pd
 import xgboost as xgb
 from sklearn import metrics
+from sklearn.linear_model import Lasso
+from sklearn.preprocessing import StandardScaler
 
 
 def prepare_data(
@@ -61,8 +59,16 @@ def prepare_data(
     df_test = data[data["season"].isin(test_seasons)].dropna(subset=features)
 
     x_train = df_train[features]
-    y_train = df_train["result"]
     x_test = df_test[features]
+    scaler = StandardScaler().fit(x_train)
+    x_train = pd.DataFrame(
+        scaler.transform(x_train), columns=features, index=x_train.index
+    )
+    x_test = pd.DataFrame(
+        scaler.transform(x_test), columns=features, index=x_test.index
+    )
+
+    y_train = df_train["result"]
     y_test = df_test["result"]
 
     return df_train, x_train, y_train, df_test, x_test, y_test
@@ -91,6 +97,8 @@ def get_hyperparams(trial: optuna.Trial, model_class: str) -> dict:
             "reg_lambda": trial.suggest_float("reg_lambda", 0.001, 25, log=True),
             "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
         }
+    if model_class == "Lasso":
+        return {"alpha": trial.suggest_float("alpha", 1e-4, 10.0, log=True)}
 
     raise NotImplementedError(f"Model class not implemented for {model_class}")
 
@@ -117,6 +125,9 @@ def build_model(model_class: str, hyperparams: dict, early_stopping: bool):
         if early_stopping:
             model_args["early_stopping_rounds"] = 50
         return xgb.XGBRegressor(**model_args)
+
+    if model_class == "Lasso":
+        return Lasso(**hyperparams, max_iter=5000)
 
     raise NotImplementedError(f"Model class not implemented for {model_class}")
 
@@ -262,7 +273,7 @@ def main(
             model predictions, trained model instance, best hyperparameters found
             via tuning.
     """
-    if model_class not in ["XGB"]:
+    if model_class not in ["XGB", "Lasso"]:
         raise NotImplementedError(f"Model class not implemented for {model_class}")
 
     if target_type == "residual" and baseline_col is None:
