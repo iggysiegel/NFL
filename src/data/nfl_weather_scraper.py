@@ -161,8 +161,8 @@ class NflWeatherScraper:
                 [
                     "wild-card",
                     "divisional-round",
-                    "conference-championships",
-                    "superbowl",
+                    "conference-championship",
+                    "super-bowl",
                 ]
             )
 
