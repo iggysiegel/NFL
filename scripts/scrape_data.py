@@ -74,6 +74,7 @@ if __name__ == "__main__":
         # nfl_data_py
         ndp_season = ndp_scrape(season)
         save_data(ndp_season, "nfl_data_py", season, RAW_DATA_DIR)
+        print(f"{season} nfl_data_py done.", flush=True)
 
         # Pro Football Reference
         pfr_season = pfr_scrape(season)

@@ -15,6 +15,9 @@ Notes:
 - Output is CSVs with consistent schema across seasons.
 """
 
+import os
+from contextlib import redirect_stdout
+
 import nfl_data_py as nfl
 import pandas as pd
 
@@ -63,7 +66,8 @@ def scrape_season(season: int) -> pd.DataFrame:
     Returns:
         pbp: A DataFrame containing play-by-play data for the specified season
     """
-    pbp = nfl.import_pbp_data([season])
+    with open(os.devnull, "w", encoding="utf-8") as f, redirect_stdout(f):
+        pbp = nfl.import_pbp_data([season])
 
     # Map teams to hrefs
     pbp["home_team"] = pbp["home_team"].replace(TEAM_HREFS)
