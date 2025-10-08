@@ -4,7 +4,7 @@ This module provides reusable functions to clean and transform
 nfl_data_py raw data into a structured format.
 
 Usage:
-    from src.processing.nfl_data_py_processer import process_data
+    from src.processing.nfl_data_py_processor import process_data
 
     # Process a raw dataframe
     processed_df = process_data(raw_df)
