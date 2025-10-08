@@ -1,7 +1,8 @@
 """Data processor: process_data.py.
 
 Process raw NFL data from multiple sources (e.g., Pro Football Reference JSON files,
-nfl_data_py CSV files) and save the processed data in the processed data directory.
+NFLWeather.com JSON files, nfl_data_py CSV files) and save the processed data in the
+processed data directory.
 
 Output:
     - <SEASON>_processed.csv
@@ -19,10 +20,12 @@ import argparse
 import os
 
 import pandas as pd
-from src.processing.nfl_data_py_processer import process_data as ndp_processor
-from src.processing.pro_football_reference_processor import (
-    process_data as pfr_processor,
-)
+
+from src.processing.nfl_data_py_processor import process_data as ndp_processor
+from src.processing.nfl_weather_processor import \
+    process_data as weather_processor
+from src.processing.pro_football_reference_processor import \
+    process_data as pfr_processor
 
 # Directories
 # -----------
@@ -33,15 +36,20 @@ PROCESS_DATA_DIR = os.path.join(SCRIPT_DIR, "../data/processed")
 # Configure sources
 # -----------------
 SOURCES = {
-    "pro_football_reference": {
-        "filename": "pro_football_reference_{}.json",
-        "processor": pfr_processor,
-        "reader": pd.read_json,
-    },
     "nfl_data_py": {
         "filename": "nfl_data_py_{}.csv",
         "processor": ndp_processor,
         "reader": lambda path: pd.read_csv(path, low_memory=False),
+    },
+    "weather": {
+        "filename": "weather_{}.json",
+        "processor": weather_processor,
+        "reader": pd.read_json,
+    },
+    "pro_football_reference": {
+        "filename": "pro_football_reference_{}.json",
+        "processor": pfr_processor,
+        "reader": pd.read_json,
     },
 }
 
