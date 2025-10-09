@@ -1,4 +1,95 @@
-"""TODO: Add pipeline for imputation!"""
+from datetime import datetime
+
+import numpy as np
+
+
+def haversine(
+    lat1: float,
+    lon1: float,
+    lat2: float,
+    lon2: float,
+) -> float:
+    """
+    Calculate the Haversine distance between two points on Earth.
+
+    Args:
+        lat1: Latitude of the first point in degrees.
+        lon1: Longitude of the first point in degrees.
+        lat2: Latitude of the second point in degrees.
+        lon2: Longitude of the second point in degrees.
+
+    Returns:
+        A float of the haversine distance in miles.
+    """
+    # Convert degrees to radians
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
+
+    # Earth radius in miles
+    r = 3958.8
+    return c * r
+
+
+def travel_distance(df):
+    df = df.copy()
+    temp = {team: [37.77, -89.54] for team in df["home_team"].unique()}
+    home_travel_distance = []
+    away_travel_distance = []
+
+    for row in df.itertuples():
+        home_team = row.home_team
+        away_team = row.away_team
+        lat = row.latitude
+        lon = row.longitude
+        home_travel_distance.append(
+            haversine(temp[home_team][0], temp[home_team][1], lat, lon)
+        )
+        away_travel_distance.append(
+            haversine(temp[away_team][0], temp[away_team][1], lat, lon)
+        )
+        temp[home_team] = [lat, lon]
+        temp[away_team] = [lat, lon]
+
+    df["home_travel_distance"] = home_travel_distance
+    df["away_travel_distance"] = away_travel_distance
+    return df
+
+
+def rest_days(df):
+    df = df.copy()
+    temp = {team: [None, None] for team in df["home_team"].unique()}
+    home_rest_days = []
+    away_rest_days = []
+
+    for row in df.itertuples():
+        game_date = datetime.strptime(row.game_id[:8], "%Y%m%d")
+
+        if temp[row.home_team][0] != row.season:
+            temp[row.home_team][0] = row.season
+            home_rest_days.append(7)
+            temp[row.home_team][1] = game_date
+        else:
+            time_delta = (game_date - temp[row.home_team][1]).days
+            home_rest_days.append(time_delta)
+            temp[row.home_team][1] = game_date
+
+        if temp[row.away_team][0] != row.season:
+            temp[row.away_team][0] = row.season
+            away_rest_days.append(7)
+            temp[row.away_team][1] = game_date
+        else:
+            time_delta = (game_date - temp[row.away_team][1]).days
+            away_rest_days.append(time_delta)
+            temp[row.away_team][1] = game_date
+
+    df["home_rest_days"] = home_rest_days
+    df["away_rest_days"] = away_rest_days
+    return df
 
 
 def is_indoors(df):
@@ -153,6 +244,8 @@ def spread_differential(df, n):
 
 def add_contextual_features(df):
     df = df.copy()
+    df = travel_distance(df)
+    df = rest_days(df)
     df = is_indoors(df)
     df = surface(df)
     df = attendance(df)
@@ -170,6 +263,10 @@ def add_contextual_features(df):
     df = df[
         [
             "game_id",
+            "home_travel_distance",
+            "away_travel_distance",
+            "home_rest_days",
+            "away_rest_days",
             "is_indoors",
             "surface",
             "attendance",

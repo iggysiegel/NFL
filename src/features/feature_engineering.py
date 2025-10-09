@@ -37,6 +37,16 @@ METADATA_FEATURES = [
     "roof",
     "surface",
     "attendance",
+    "latitude",
+    "longitude",
+    "weather_windy",
+    "weather_rainy",
+    "weather_snow",
+    "weather_severe",
+    "temp",
+    "wind_mph",
+    "precip_prob",
+    "precip_prob_missing",
 ]
 
 
@@ -260,14 +270,19 @@ def engineer_features(df_game_ewa: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame with final engineered features.
     """
-    engineered = pd.DataFrame()
+    engineered = {}
     features_to_process = list(df_game_ewa.columns)
+    features_processed = []
 
     for feature in features_to_process:
+        # Skip if already processed
+        if feature in features_processed:
+            continue
 
         # Keep metadata features as-is
         if feature in METADATA_FEATURES:
             engineered[feature] = df_game_ewa[feature]
+            features_processed.append(feature)
 
         # Offensive/defensive home-away advantage
         elif re.search(r"_(off|def)_", feature) and re.search(r"_(home|away)", feature):
@@ -294,10 +309,7 @@ def engineer_features(df_game_ewa: pd.DataFrame) -> pd.DataFrame:
             )
 
             # Remove from list to avoid double-counting
-            features_to_process.remove(off_home)
-            features_to_process.remove(def_home)
-            features_to_process.remove(off_away)
-            features_to_process.remove(def_away)
+            features_processed.extend([off_home, def_home, off_away, def_away])
 
         # Home/away advantage
         elif re.search(r"_(home|away)", feature):
@@ -312,13 +324,12 @@ def engineer_features(df_game_ewa: pd.DataFrame) -> pd.DataFrame:
             engineered[f"{base_name}_adv"] = df_game_ewa[home] - df_game_ewa[away]
 
             # Remove from list to avoid double-counting
-            features_to_process.remove(home)
-            features_to_process.remove(away)
+            features_processed.extend([home, away])
 
         else:
             raise ValueError(f"Cannot parse feature: {feature}")
 
-    return engineered
+    return pd.DataFrame(engineered)
 
 
 # High-level function
