@@ -2,6 +2,18 @@ from datetime import datetime
 
 import numpy as np
 
+"""
+TODO:
+- Season context i.e. standings?
+- Time zone differentials
+- Number of consecutive road games
+- Injury information (key players, multiple of one position, number, one-hot for QB)
+- QB model
+- Game importance (divisonal vs playoffs?)
+- Team form (recent performance)
+- Red zone efficiency
+"""
+
 
 def haversine(
     lat1: float,
@@ -57,6 +69,7 @@ def travel_distance(df):
 
     df["home_travel_distance"] = home_travel_distance
     df["away_travel_distance"] = away_travel_distance
+    df["travel_adv"] = df["home_travel_distance"] - df["away_travel_distance"]
     return df
 
 
@@ -89,6 +102,7 @@ def rest_days(df):
 
     df["home_rest_days"] = home_rest_days
     df["away_rest_days"] = away_rest_days
+    df["rest_adv"] = df["home_rest_days"] - df["away_rest_days"]
     return df
 
 
@@ -116,6 +130,7 @@ def implied_score(df):
     df = df.copy()
     df["home_implied_score"] = (df["over_under"] - df["home_line"]) / 2
     df["away_implied_score"] = (df["over_under"] + df["home_line"]) / 2
+    df["implied_score_adv"] = df["home_implied_score"] - df["away_implied_score"]
     return df
 
 
@@ -140,6 +155,7 @@ def ats_pctg(df, n):
             temp[row.away_team].insert(0, 0)
     df[f"home_ats_pctg_{n}"] = home_ats_pctg
     df[f"away_ats_pctg_{n}"] = away_ats_pctg
+    df[f"ats_pctg_{n}_adv"] = df[f"home_ats_pctg_{n}"] - df[f"away_ats_pctg_{n}"]
     return df
 
 
@@ -169,6 +185,9 @@ def ats_pctg_favorite(df, n):
                 temp[row.away_team].insert(0, 0)
     df[f"home_ats_pctg_fav_{n}"] = home_ats_pctg_fav
     df[f"away_ats_pctg_fav_{n}"] = away_ats_pctg_fav
+    df[f"ats_pctg_fav_{n}_adv"] = (
+        df[f"home_ats_pctg_fav_{n}"] - df[f"away_ats_pctg_fav_{n}"]
+    )
     return df
 
 
@@ -198,6 +217,9 @@ def ats_pctg_underdog(df, n):
                 temp[row.away_team].insert(0, 0)
     df[f"home_ats_pctg_und_{n}"] = home_ats_pctg_und
     df[f"away_ats_pctg_und_{n}"] = away_ats_pctg_und
+    df[f"ats_pctg_und_{n}_adv"] = (
+        df[f"home_ats_pctg_und_{n}"] - df[f"away_ats_pctg_und_{n}"]
+    )
     return df
 
 
@@ -222,6 +244,7 @@ def win_pctg(df, n):
             temp[row.away_team].insert(0, 0)
     df[f"home_win_pctg_{n}"] = home_win_pctg
     df[f"away_win_pctg_{n}"] = away_win_pctg
+    df[f"win_pctg_{n}_adv"] = df[f"home_win_pctg_{n}"] - df[f"away_win_pctg_{n}"]
     return df
 
 
@@ -239,11 +262,14 @@ def spread_differential(df, n):
         temp[row.away_team].insert(0, row.result - row.home_line)
     df[f"home_spread_diff_{n}"] = home_spread_diff
     df[f"away_spread_diff_{n}"] = away_spread_diff
+    df[f"spread_diff_{n}_adv"] = (
+        df[f"home_spread_diff_{n}"] - df[f"away_spread_diff_{n}"]
+    )
     return df
 
 
 def add_contextual_features(df):
-    df = df.copy()
+    df = df.sort_values(by=["season", "week"]).copy()
     df = travel_distance(df)
     df = rest_days(df)
     df = is_indoors(df)
@@ -265,33 +291,46 @@ def add_contextual_features(df):
             "game_id",
             "home_travel_distance",
             "away_travel_distance",
+            "travel_adv",
             "home_rest_days",
             "away_rest_days",
+            "rest_adv",
             "is_indoors",
             "surface",
             "attendance",
             "home_implied_score",
             "away_implied_score",
+            "implied_score_adv",
             "home_ats_pctg_5",
             "away_ats_pctg_5",
+            "ats_pctg_5_adv",
             "home_ats_pctg_10",
             "away_ats_pctg_10",
+            "ats_pctg_10_adv",
             "home_ats_pctg_fav_5",
             "away_ats_pctg_fav_5",
+            "ats_pctg_fav_5_adv",
             "home_ats_pctg_fav_10",
             "away_ats_pctg_fav_10",
+            "ats_pctg_fav_10_adv",
             "home_ats_pctg_und_5",
             "away_ats_pctg_und_5",
+            "ats_pctg_und_5_adv",
             "home_ats_pctg_und_10",
             "away_ats_pctg_und_10",
+            "ats_pctg_und_10_adv",
             "home_win_pctg_5",
             "away_win_pctg_5",
+            "win_pctg_5_adv",
             "home_win_pctg_10",
             "away_win_pctg_10",
+            "win_pctg_10_adv",
             "home_spread_diff_5",
             "away_spread_diff_5",
+            "spread_diff_5_adv",
             "home_spread_diff_10",
             "away_spread_diff_10",
+            "spread_diff_10_adv",
         ]
     ]
     return df
