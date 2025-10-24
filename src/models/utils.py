@@ -72,7 +72,7 @@ def cross_validation(
         target_col: The column name to be used as the target variable.
 
     Returns:
-        tuple: The RMSE score and number of boosting iterations.
+        A tuple of the RMSE score and number of boosting iterations.
     """
     # Get unique season-week combinations sorted chronologically
     season_week_array = (
