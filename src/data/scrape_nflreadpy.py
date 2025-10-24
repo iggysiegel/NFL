@@ -4,39 +4,47 @@ import nflreadpy as nfl
 import pandas as pd
 
 
-def scrape_nflreadpy(
-    start_season: int, end_season: int
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Scrape NFL team statistics and game schedules for a range of seasons using
+class NflReadPyScraper:
+    """Scrape NFL team statistics and game schedules for a given season range using
     nflreadpy.
 
-    Data leakage is avoided by ensuring that, for the current season, only team
-    statistics data from completed weeks is included.
-
-    Args:
-        start_season: The starting season (inclusive).
-        end_season: The ending season (exclusive).
-    Returns:
-        A tuple containing two DataFrames:
-        - team_stats: DataFrame with team statistics for the specified seasons.
-        - game_schedules: DataFrame with game schedules for the specified seasons.
+    This class avoids data leakage by ensuring that, for the current season, only
+    completed weeks are included in the schedules.
     """
-    if end_season > nfl.get_current_season():
-        raise ValueError("End season cannot be in the future.")
 
-    team_stats = nfl.load_team_stats(
-        list(range(start_season, end_season + 1))
-    ).to_pandas()
+    def __init__(self, start_season: int, end_season: int):
+        """
+        Args:
+            start_season: The starting season (inclusive).
+            end_season: The ending season (inclusive).
+        """
+        self.start_season = start_season
+        self.end_season = end_season
 
-    game_schedules = nfl.load_schedules(
-        list(range(start_season, end_season + 1))
-    ).to_pandas()
+        current_season = nfl.get_current_season()
+        if self.end_season > current_season:
+            raise ValueError(f"End season cannot be in the future ({current_season}).")
 
-    if end_season == nfl.get_current_season():
-        game_schedules = game_schedules[
-            (game_schedules["season"] != nfl.get_current_season())
-            | (game_schedules["week"] <= nfl.get_current_week())
-        ]
-        game_schedules = game_schedules[game_schedules["result"].notnull()]
+    def scrape(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Scrape team statistics and game schedules.
 
-    return team_stats, game_schedules
+        Returns:
+            tuple: A tuple containing two DataFrames:
+                - team_stats: Team statistics for the specified seasons.
+                - game_schedules: Game schedules for the specified seasons.
+        """
+        seasons = list(range(self.start_season, self.end_season + 1))
+
+        team_stats = nfl.load_team_stats(seasons).to_pandas()
+        game_schedules = nfl.load_schedules(seasons).to_pandas()
+
+        # For the current season, keep only completed games to avoid data leakage
+        if self.end_season == nfl.get_current_season():
+            current_week = nfl.get_current_week()
+            game_schedules = game_schedules[
+                (game_schedules["season"] != nfl.get_current_season())
+                | (game_schedules["week"] <= current_week)
+            ]
+            game_schedules = game_schedules[game_schedules["result"].notnull()]
+
+        return team_stats, game_schedules
