@@ -4,14 +4,20 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - pip
   - black
   - flake8
+  - ipywidgets
   - ipykernel
   - isort
+  - matplotlib
+  - numpy
+  - optuna
   - pandas
+  - pip
   - pre-commit
   - pyarrow
   - pylint
+  - scikit-learn
+  - xgboost
   - pip:
       - nflreadpy
