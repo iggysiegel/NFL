@@ -1,0 +1,17 @@
+name: nfl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - black
+  - flake8
+  - ipykernel
+  - isort
+  - pandas
+  - pre-commit
+  - pyarrow
+  - pylint
+  - pip:
+      - nflreadpy

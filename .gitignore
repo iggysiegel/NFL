@@ -1,0 +1,12 @@
+# OS / IDE
+.DS_Store
+.ipynb_checkpoints
+__pycache__/
+
+# Ignore notebooks
+notebooks/
+
+# Data folders
+data/raw/
+data/process/
+data/feature/
