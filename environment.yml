@@ -18,6 +18,7 @@ dependencies:
   - pyarrow
   - pylint
   - scikit-learn
+  - shap
   - xgboost
   - pip:
       - nflreadpy
