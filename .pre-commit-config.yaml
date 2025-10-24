@@ -20,3 +20,4 @@ repos:
     rev: v4.0.2
     hooks:
       - id: pylint
+        language: system
