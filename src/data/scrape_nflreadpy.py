@@ -35,5 +35,6 @@ def scrape_nflreadpy(
         game_schedules = game_schedules[
             game_schedules["week"] <= nfl.get_current_week()
         ]
+        game_schedules = game_schedules[game_schedules["result"].notnull()]
 
     return team_stats, game_schedules
