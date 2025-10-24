@@ -33,10 +33,6 @@ def scrape_nflreadpy(
     ).to_pandas()
 
     if end_season == nfl.get_current_season():
-        team_stats = team_stats[
-            (team_stats["season"] != nfl.get_current_season())
-            | (team_stats["week"] < nfl.get_current_week())
-        ]
         game_schedules = game_schedules[
             (game_schedules["season"] != nfl.get_current_season())
             | (game_schedules["week"] <= nfl.get_current_week())
