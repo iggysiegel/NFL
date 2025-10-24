@@ -24,16 +24,22 @@ def scrape_nflreadpy(
     if end_season > nfl.get_current_season():
         raise ValueError("End season cannot be in the future.")
 
-    team_stats = nfl.load_team_stats(list(range(start_season, end_season))).to_pandas()
+    team_stats = nfl.load_team_stats(
+        list(range(start_season, end_season + 1))
+    ).to_pandas()
 
     game_schedules = nfl.load_schedules(
-        list(range(start_season, end_season))
+        list(range(start_season, end_season + 1))
     ).to_pandas()
 
     if end_season == nfl.get_current_season():
-        team_stats = team_stats[team_stats["week"] < nfl.get_current_week()]
+        team_stats = team_stats[
+            (team_stats["season"] != nfl.get_current_season())
+            | (team_stats["week"] < nfl.get_current_week())
+        ]
         game_schedules = game_schedules[
-            game_schedules["week"] <= nfl.get_current_week()
+            (game_schedules["season"] != nfl.get_current_season())
+            | (game_schedules["week"] <= nfl.get_current_week())
         ]
         game_schedules = game_schedules[game_schedules["result"].notnull()]
 
