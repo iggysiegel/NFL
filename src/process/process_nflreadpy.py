@@ -227,6 +227,9 @@ class GameScheduleCleaner:
         surfaces = self.df["surface"].fillna("").str.lower().str.strip()
         self.df["surface"] = surfaces.isin(["grass"]).astype(int)
 
+        # Rest advantage
+        self.df["rest"] = self.df["home_rest"] - self.df["away_rest"]
+
     def select_features(self):
         """Select relevant features from game schedule data."""
         cols = [
@@ -243,8 +246,7 @@ class GameScheduleCleaner:
             "div_game",
             "is_indoors",
             "surface",
-            "away_rest",
-            "home_rest",
+            "rest",
             "away_moneyline",
             "home_moneyline",
             "spread_line",
