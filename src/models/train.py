@@ -10,6 +10,9 @@ import pandas as pd
 from .utils import cross_validation, prepare_data
 from .xgboost_utils import build_model, get_hyperparams
 
+# Suppress Optuna logging
+optuna.logging.set_verbosity(optuna.logging.WARNING)
+
 
 def objective(
     trial: optuna.Trial,
