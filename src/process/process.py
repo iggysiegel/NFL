@@ -1,11 +1,10 @@
 """Module for processing data from all sources.
 
-Merge all data sources, compute EWA for selected features, perform
-feature engineering, and convert team-level data to game-level data.
+Merge all data sources, perform feature engineering, compute EWA for
+selected features, and convert team-level data to game-level data.
 
 Notes
 -----
-- Maybe apply EWA after feature selection.
 - Currently skip the first season since no prior data exists.
 """
 
@@ -35,9 +34,76 @@ class DataProcessor:
             set(self.team_stats.ewa_features + self.game_schedules.ewa_features)
         )
 
-        self.apply_ewa()
         self.feature_engineering()
+        self.apply_ewa()
         self.convert_to_game_data()
+
+    def feature_engineering(self):
+        """Create additional features."""
+        self.data["passing_epa_per_attempt"] = (
+            self.data["passing_epa"] / self.data["attempts"]
+        )
+        self.ewa_features.append("passing_epa_per_attempt")
+
+        self.data["completion_pct"] = self.data["completions"] / self.data["attempts"]
+        self.ewa_features.append("completion_pct")
+
+        self.data["passing_yards_per_attempt"] = (
+            self.data["passing_yards"] / self.data["attempts"]
+        )
+        self.ewa_features.append("passing_yards_per_attempt")
+
+        self.data["rushing_epa_per_carry"] = (
+            self.data["rushing_epa"] / self.data["carries"]
+        )
+        self.ewa_features.append("rushing_epa_per_carry")
+
+        self.data["rushing_yards_per_carry"] = (
+            self.data["rushing_yards"] / self.data["carries"]
+        )
+        self.ewa_features.append("rushing_yards_per_carry")
+
+        self.data["receiving_yards_after_catch_per_completion"] = (
+            self.data["receiving_yards_after_catch"] / self.data["receptions"]
+        )
+        self.ewa_features.append("receiving_yards_after_catch_per_completion")
+
+        self.data["kickoff_return_avg_yards"] = (
+            self.data["kickoff_return_yards"] / self.data["kickoff_returns"]
+        )
+        self.ewa_features.append("kickoff_return_avg_yards")
+
+        self.data["punt_return_avg_yards"] = (
+            self.data["punt_return_yards"] / self.data["punt_returns"]
+        )
+        self.ewa_features.append("punt_return_avg_yards")
+
+        self.data["def_turnovers"] = (
+            self.data["def_fumbles_forced"] + self.data["def_interceptions"]
+        )
+        self.ewa_features.append("def_turnovers")
+
+        self.data["def_avg_sack"] = self.data["def_sack_yards"] / self.data["def_sacks"]
+        self.ewa_features.append("def_avg_sack")
+
+        self.data["def_pressure"] = self.data["def_sacks"] + self.data["def_qb_hits"]
+        self.ewa_features.append("def_pressure")
+
+        self.data["def_avg_tackles_for_loss"] = (
+            self.data["def_tackles_for_loss_yards"] / self.data["def_tackles_for_loss"]
+        )
+        self.ewa_features.append("def_avg_tackles_for_loss")
+
+        self.data["turnovers"] = (
+            self.data["passing_interceptions"]
+            + self.data["sack_fumbles"]
+            + self.data["rushing_fumbles"]
+            + self.data["receiving_fumbles"]
+        )
+        self.ewa_features.append("turnovers")
+
+        self.data["avg_penalty"] = self.data["penalty_yards"] / self.data["penalties"]
+        self.ewa_features.append("avg_penalty")
 
     def apply_ewa(self):
         """Compute exponentially weighted averages (EWA) for specified features."""
@@ -118,73 +184,6 @@ class DataProcessor:
             .sort_values(by=["season", "week", "team"])
             .reset_index(drop=True)
         )
-
-    def feature_engineering(self):
-        """Create additional features."""
-        self.data["passing_epa_per_attempt"] = (
-            self.data["passing_epa"] / self.data["attempts"]
-        )
-        self.ewa_features.append("passing_epa_per_attempt")
-
-        self.data["completion_pct"] = self.data["completions"] / self.data["attempts"]
-        self.ewa_features.append("completion_pct")
-
-        self.data["passing_yards_per_attempt"] = (
-            self.data["passing_yards"] / self.data["attempts"]
-        )
-        self.ewa_features.append("passing_yards_per_attempt")
-
-        self.data["rushing_epa_per_carry"] = (
-            self.data["rushing_epa"] / self.data["carries"]
-        )
-        self.ewa_features.append("rushing_epa_per_carry")
-
-        self.data["rushing_yards_per_carry"] = (
-            self.data["rushing_yards"] / self.data["carries"]
-        )
-        self.ewa_features.append("rushing_yards_per_carry")
-
-        self.data["receiving_yards_after_catch_per_completion"] = (
-            self.data["receiving_yards_after_catch"] / self.data["receptions"]
-        )
-        self.ewa_features.append("receiving_yards_after_catch_per_completion")
-
-        self.data["kickoff_return_avg_yards"] = (
-            self.data["kickoff_return_yards"] / self.data["kickoff_returns"]
-        )
-        self.ewa_features.append("kickoff_return_avg_yards")
-
-        self.data["punt_return_avg_yards"] = (
-            self.data["punt_return_yards"] / self.data["punt_returns"]
-        )
-        self.ewa_features.append("punt_return_avg_yards")
-
-        self.data["def_turnovers"] = (
-            self.data["def_fumbles_forced"] + self.data["def_interceptions"]
-        )
-        self.ewa_features.append("def_turnovers")
-
-        self.data["def_avg_sack"] = self.data["def_sack_yards"] / self.data["def_sacks"]
-        self.ewa_features.append("def_avg_sack")
-
-        self.data["def_pressure"] = self.data["def_sacks"] + self.data["def_qb_hits"]
-        self.ewa_features.append("def_pressure")
-
-        self.data["def_avg_tackles_for_loss"] = (
-            self.data["def_tackles_for_loss_yards"] / self.data["def_tackles_for_loss"]
-        )
-        self.ewa_features.append("def_avg_tackles_for_loss")
-
-        self.data["turnovers"] = (
-            self.data["passing_interceptions"]
-            + self.data["sack_fumbles"]
-            + self.data["rushing_fumbles"]
-            + self.data["receiving_fumbles"]
-        )
-        self.ewa_features.append("turnovers")
-
-        self.data["avg_penalty"] = self.data["penalty_yards"] / self.data["penalties"]
-        self.ewa_features.append("avg_penalty")
 
     def _get_team_stats(self, season: int, week: int, team: str) -> pd.DataFrame:
         """Return the EWA stats for a given team, week, and season."""
