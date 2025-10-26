@@ -5,8 +5,3 @@ __pycache__/
 
 # Ignore notebooks
 notebooks/
-
-# Data folders
-data/raw/
-data/process/
-data/feature/
