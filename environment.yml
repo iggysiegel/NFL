@@ -17,8 +17,10 @@ dependencies:
   - pre-commit
   - pyarrow
   - pylint
+  - pymc>=5
   - scikit-learn
   - shap
+  - tqdm
   - xgboost
   - pip:
       - nflreadpy
