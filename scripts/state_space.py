@@ -38,7 +38,7 @@ def run_backtest(start_season: int, start_week: int, end_season: int, end_week: 
 
         train_data = data[
             (
-                (data["season"] > train_start_season)
+                (data["season"] >= train_start_season)
                 & (
                     (data["season"] < season)
                     | ((data["season"] == season) & (data["week"] < week))
