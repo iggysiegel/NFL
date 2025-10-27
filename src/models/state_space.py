@@ -206,49 +206,52 @@ class StateSpaceModel:
                 return_inferencedata=True,
             )
 
-    def get_parameters(self):
-        """Get most recent team strengths, home field advantage, and regression
-        parameters from the fit model."""
+    def predict(self, data):
+        """Predict games in testing data with Bayesian uncertainty."""
         if self.trace is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
-        theta = self.trace.posterior["theta"].mean(dim=["chain", "draw"]).values[-1, :]
-        alpha = self.trace.posterior["alpha"].mean().item()
-        beta_s = self.trace.posterior["beta_s"].mean().item()
-        beta_w = self.trace.posterior["beta_w"].mean().item()
+        theta = self.trace.posterior["theta"].values
+        alpha = self.trace.posterior["alpha"].values
+        beta_s = self.trace.posterior["beta_s"].values
+        beta_w = self.trace.posterior["beta_w"].values
 
-        return theta, alpha, beta_s, beta_w
-
-    def predict(self, data):
-        """Predict games in testing data."""
-        theta, alpha, beta_s, beta_w = self.get_parameters()
+        mean_theta = np.mean(theta[:, :, -1, :], axis=3, keepdims=True)
 
         results = []
 
         for row in data.itertuples():
             home_team_idx = self.team_to_idx[row.home_team]
             away_team_idx = self.team_to_idx[row.away_team]
+            beta = beta_s if row.week == 1 else beta_w
 
-            if row.week == 1:
-                beta = beta_s
-            else:
-                beta = beta_w
-            home_team_strength = beta * (theta[home_team_idx] - np.mean(theta))
-            away_team_strength = beta * (theta[away_team_idx] - np.mean(theta))
+            home_team_strength = beta * (
+                theta[:, :, -1, home_team_idx : home_team_idx + 1] - mean_theta
+            )
+            away_team_strength = beta * (
+                theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
+            )
+            hfa = np.zeros_like(alpha) if row.is_neutral else alpha
 
-            if row.is_neutral:
-                alpha_game = 0
-            else:
-                alpha_game = alpha
-            prediction = home_team_strength - away_team_strength + alpha_game
+            prediction = home_team_strength - away_team_strength + hfa
 
             results.append(
                 [
                     row.home_team,
                     row.away_team,
-                    home_team_strength,
-                    away_team_strength,
-                    prediction,
+                    float((prediction > 0).mean()),
+                    float(prediction.mean()),
+                    float(prediction.std()),
+                    float(np.percentile(prediction, 5)),
+                    float(np.percentile(prediction, 95)),
+                    float(home_team_strength.mean()),
+                    float(home_team_strength.std()),
+                    float(np.percentile(home_team_strength, 5)),
+                    float(np.percentile(home_team_strength, 95)),
+                    float(away_team_strength.mean()),
+                    float(away_team_strength.std()),
+                    float(np.percentile(away_team_strength, 5)),
+                    float(np.percentile(away_team_strength, 95)),
                 ]
             )
 
@@ -257,8 +260,18 @@ class StateSpaceModel:
             columns=[
                 "home_team",
                 "away_team",
-                "home_strength",
-                "away_strength",
-                "prediction",
+                "home_win_prob",
+                "prediction_mean",
+                "prediction_std",
+                "prediction_ci_05",
+                "prediction_ci_95",
+                "home_strength_mean",
+                "home_strength_std",
+                "home_strength_ci_05",
+                "home_strength_ci_95",
+                "away_strength_mean",
+                "away_strength_std",
+                "away_strength_ci_05",
+                "away_strength_ci_95",
             ],
         )
