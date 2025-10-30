@@ -1,0 +1,2 @@
+home_team,away_team,home_win_prob,prediction_mean,prediction_std,prediction_ci_05,prediction_ci_95,home_strength_mean,home_strength_std,home_strength_ci_05,home_strength_ci_95,away_strength_mean,away_strength_std,away_strength_ci_05,away_strength_ci_95
+KC,SF,0.3875,-1.3445328366764457,4.832775106368772,-9.286188494100426,6.493942138252189,5.291142278266012,3.234633396366339,0.08127385599220116,10.595460742472849,6.635675114942458,3.3483079236438567,1.2695067854938378,12.115800112246314

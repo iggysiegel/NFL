@@ -1,0 +1,2 @@
+home_team,away_team,home_win_prob,prediction_mean,prediction_std,prediction_ci_05,prediction_ci_95,home_strength_mean,home_strength_std,home_strength_ci_05,home_strength_ci_95,away_strength_mean,away_strength_std,away_strength_ci_05,away_strength_ci_95
+CIN,LA,0.261,-2.9375143390436222,4.663034162796919,-10.560312804807884,4.655434867345624,2.8163419783459074,3.285377032935689,-2.5062877789430584,8.420357803073479,5.75385631738953,3.244224229514859,0.46861988079690325,11.175325574413359

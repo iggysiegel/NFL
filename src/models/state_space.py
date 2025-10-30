@@ -1,4 +1,5 @@
 """State space model implementation."""
+# TODO: Refit when r-hat > 1.01?
 
 import warnings
 
@@ -216,7 +217,7 @@ class StateSpaceModel:
         beta_s = self.trace.posterior["beta_s"].values
         beta_w = self.trace.posterior["beta_w"].values
 
-        mean_theta = np.mean(theta[:, :, -1, :], axis=3, keepdims=True)
+        mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
 
         results = []
 
@@ -224,6 +225,7 @@ class StateSpaceModel:
             home_team_idx = self.team_to_idx[row.home_team]
             away_team_idx = self.team_to_idx[row.away_team]
             beta = beta_s if row.week == 1 else beta_w
+            beta = beta[:, :, None]
 
             home_team_strength = beta * (
                 theta[:, :, -1, home_team_idx : home_team_idx + 1] - mean_theta
@@ -231,7 +233,7 @@ class StateSpaceModel:
             away_team_strength = beta * (
                 theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
             )
-            hfa = np.zeros_like(alpha) if row.is_neutral else alpha
+            hfa = np.zeros_like(alpha)[:, :, None] if row.is_neutral else alpha[:, :, None]
 
             prediction = home_team_strength - away_team_strength + hfa
 
