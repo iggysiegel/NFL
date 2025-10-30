@@ -131,11 +131,6 @@ class GameScheduleCleaner:
         """Initialize the GameScheduleCleaner."""
         self.data = data.copy()
 
-        # Map historical team names to current ones
-        team_name_map = {"OAK": "LV", "SD": "LAC", "STL": "LA"}
-        self.data["home_team"] = self.data["home_team"].replace(team_name_map)
-        self.data["away_team"] = self.data["away_team"].replace(team_name_map)
-
         self.static_features = [
             "game_id",
             "season",

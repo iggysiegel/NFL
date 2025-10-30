@@ -20,6 +20,8 @@ class NflReadPyScraper:  # pylint: disable=too-few-public-methods
         current_season = nfl.get_current_season()
         if self.end_season > current_season:
             raise ValueError(f"End season cannot be in the future ({current_season}).")
+        if self.start_season < 2003:
+            raise ValueError("Data not supported before 2003 season.")
 
     def scrape(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Scrape team statistics and game schedules.
@@ -33,6 +35,11 @@ class NflReadPyScraper:  # pylint: disable=too-few-public-methods
 
         team_stats = nfl.load_team_stats(seasons).to_pandas()
         game_schedules = nfl.load_schedules(seasons).to_pandas()
+
+        # Map historical team names to current ones
+        team_name_map = {"OAK": "LV", "SD": "LAC", "STL": "LA"}
+        game_schedules["home_team"] = game_schedules["home_team"].replace(team_name_map)
+        game_schedules["away_team"] = game_schedules["away_team"].replace(team_name_map)
 
         # For the current season, keep only completed games
         if self.end_season == nfl.get_current_season():
