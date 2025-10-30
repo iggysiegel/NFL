@@ -1,3 +1,7 @@
+# NOTE:
+# PyMC requires a separate environment
+# conda create -c conda-forge -n pymc_env python=3.10 "pymc>=5"
+
 name: nfl
 channels:
   - conda-forge
@@ -17,7 +21,6 @@ dependencies:
   - pre-commit
   - pyarrow
   - pylint
-#  - pymc>=5
   - scikit-learn
   - shap
   - tqdm
