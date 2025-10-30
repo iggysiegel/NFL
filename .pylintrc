@@ -1,0 +1,2 @@
+[TYPECHECK]
+ignored-modules=pymc,pytensor,pytensor.tensor
