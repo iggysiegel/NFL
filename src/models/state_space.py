@@ -1,5 +1,4 @@
 """State space model implementation."""
-# TODO: Refit when r-hat > 1.01?
 
 import warnings
 
@@ -233,7 +232,11 @@ class StateSpaceModel:
             away_team_strength = beta * (
                 theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
             )
-            hfa = np.zeros_like(alpha)[:, :, None] if row.is_neutral else alpha[:, :, None]
+            hfa = (
+                np.zeros_like(alpha)[:, :, None]
+                if row.is_neutral
+                else alpha[:, :, None]
+            )
 
             prediction = home_team_strength - away_team_strength + hfa
 

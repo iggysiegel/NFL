@@ -3,16 +3,34 @@ predictions."""
 
 import argparse
 
-import pandas as pd
 from tqdm import tqdm
 
 from src.models.state_space import StateSpaceModel
-from src.paths import PREDICTION_DIR, RAW_DIR
+from src.paths import PREDICTION_DIR
+from src.scrape.scrape_nflreadpy import NflReadPyScraper
+
+
+def get_data(start_season: int, end_season: int):
+    """Scrape and preprocess historical game data."""
+    _, data = NflReadPyScraper(start_season - 5, end_season).scrape()
+    data["is_neutral"] = data["location"].map({"Home": 0, "Neutral": 1})
+    data = data[
+        [
+            "home_team",
+            "away_team",
+            "season",
+            "week",
+            "is_neutral",
+            "spread_line",
+            "result",
+        ]
+    ]
+    return data
 
 
 def run_backtest(start_season: int, start_week: int, end_season: int, end_week: int):
     """Run a rolling 5-year backtest and save predictions for each week."""
-    data = pd.read_csv(RAW_DIR / "historical_games.csv")
+    data = get_data(start_season, end_season)
 
     # Build list of all season-week combinations
     season_weeks = (
@@ -49,15 +67,15 @@ def run_backtest(start_season: int, start_week: int, end_season: int, end_week: 
             print("Warning! Not enough training data!")
             continue
 
-        # Initialize and fit model
-        model = StateSpaceModel()
-        model.fit(train_data)
-
         # Testing data
         test_data = data[(data["season"] == season) & (data["week"] == week)]
         if test_data.empty:
             print("Warning! No games found to predict!")
             continue
+
+        # Initialize and fit model
+        model = StateSpaceModel()
+        model.fit(train_data)
 
         # Predict
         week_preds = model.predict(test_data)
