@@ -8,7 +8,10 @@ Notes
 - Currently skip the first season since no prior data exists.
 """
 
+import numpy as np
 import pandas as pd
+
+from .contextual_features import travel_distance
 
 
 class DataProcessor:
@@ -40,6 +43,17 @@ class DataProcessor:
 
     def feature_engineering(self):
         """Create additional features."""
+        self.data = travel_distance(self.data)
+        self.static_features.extend(
+            ["home_travel_distance", "away_travel_distance", "travel_adv"]
+        )
+
+        self.data["rest_adv"] = self.data["rest"] - self.data["opponent_rest"]
+        self.static_features.append("rest_adv")
+
+        self.data["is_playoff"] = np.where(self.data["game_type"] == "REG", 0, 1)
+        self.static_features.append("is_playoff")
+
         self.data["passing_epa_per_attempt"] = (
             self.data["passing_epa"] / self.data["attempts"]
         )
