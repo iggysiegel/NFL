@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/PyCQA/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.7.6
+    hooks:
+      - id: docformatter
+        args: ["--black", "--in-place", "--recursive", "."]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8

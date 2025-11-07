@@ -1,0 +1,16 @@
+name: nfl
+channels:
+  - conda-forge
+dependencies:
+  - pymc>=5
+  - black
+  - flake8
+  - ipykernel
+  - ipywidgets
+  - isort
+  - pre-commit
+  - pyarrow
+  - tqdm
+  - pip
+  - pip:
+      - nflreadpy
