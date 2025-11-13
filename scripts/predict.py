@@ -1,4 +1,24 @@
-"""Generate weekly predictions using the state-space model."""
+"""Generate weekly NFL predictions using the state-space model.
+
+This script generates predictions for NFL games using a rolling 5-year
+training window. It can either predict the current week or run a
+backtest over a historical range of weeks.
+
+Usage:
+    Predict current week only:
+        python -m scripts.predict
+
+    Run backtest over specific range:
+        python -m scripts.predict --start-season 2020 --start-week 1 \
+                                  --end-season 2023 --end-week 18
+
+Notes:
+    - Predictions are saved to the PREDICTION_DIR as CSV files
+    - Each prediction file is named: state_space_{season}_{week:02d}.csv
+    - Existing prediction files are automatically skipped
+    - Training data starts from 2004 (5 years before first prediction)
+    - Uses a rolling 5-year training window for each prediction
+"""
 
 import argparse
 
@@ -15,16 +35,18 @@ def predict(
     start_week: int = None,
     end_season: int = None,
     end_week: int = None,
-):
+) -> None:
     """Generate predictions for each week using a 5-year training set.
 
     If all parameters are None, predicts for the current week only.
+    Otherwise, runs a backtest over the specified range of weeks,
+    training a new model for each week using previous 5 years of data.
 
     Args:
-        start_season: First season to include in backtest (None = current week).
-        start_week: First week to include in backtest (None = current week).
-        end_season: Last season to include in backtest (None = current week).
-        end_week: Last week to include in backtest (None = current week).
+        start_season: First season to include in backtest.
+        start_week: First week to include in backtest.
+        end_season: Last season to include in backtest.
+        end_week: Last week to include in backtest.
     """
     # Get current season/week
     current_season = nfl.get_current_season()
@@ -41,7 +63,7 @@ def predict(
         end_season = current_season
         end_week = current_week
 
-    # Validate inputs
+    # Validate that all parameters are provided together
     if (
         start_season is None
         or start_week is None
@@ -53,7 +75,7 @@ def predict(
             "end_week) or none (to predict current week)"
         )
 
-    # Check for future weeks
+    # Validate for future weeks
     if end_season > current_season or (
         end_season == current_season and end_week > current_week
     ):
@@ -68,7 +90,7 @@ def predict(
             f"end ({end_season} Week {end_week})"
         )
 
-    # Validate data availability
+    # Validate data availability (need 5 years of training data)
     if start_season < 2004:
         raise ValueError(
             f"Requested training start: {start_season}, data only avilable from 2004."
@@ -114,7 +136,9 @@ def predict(
 
     print(f"Found {len(season_weeks)} weeks to predict\n")
 
+    # Generate predictions for each week
     for season, week in tqdm(season_weeks, desc="Backtesting"):
+
         # Check if predictions already exist
         output_path = PREDICTION_DIR / f"state_space_{season}_{week:02d}.csv"
 
@@ -126,7 +150,7 @@ def predict(
 
         tqdm.write(f"Predicting for Season {season} Week {week}...")
 
-        # Get training data
+        # Get training data (5 years ending before current week)
         train_start_season = season - 5
         train_data = data[
             (data["season"] >= train_start_season)
@@ -162,7 +186,7 @@ def predict(
             tqdm.write(f"Error predicting Season {season} Week {week}: {e}")
             continue
 
-    # Summary
+    # Display summary
     print(f"\n{'='*60}")
     print("BACKTEST SUMMARY")
     print(f"{'='*60}")

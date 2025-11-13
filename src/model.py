@@ -18,69 +18,112 @@ warnings.filterwarnings(
 
 
 class StateSpaceModel:
-    """A state-space model for NFL team strength evolution."""
+    """A state-space model for NFL team strength evolution.
+
+    This model treats team abilities as latent states that evolve over
+    time according to a mean-reverting process with different dynamics
+    for within-season and between-season transitions.
+
+    Attributes:
+        num_teams: Number of NFL teams.
+        team_to_idx: Mapping from team names to integer indices.
+        trace: PyMC inference data containing posterior samples.
+        model: PyMC model object.
+
+    Example:
+        >>> model = StateSpaceModel()
+        >>> model.fit(historical_games)
+        >>> predictions = model.predict(upcoming_games)
+    """
 
     def __init__(self):
-        """Initialize model."""
+        """Initialize the state-space model."""
         self.num_teams = 32
         self.team_to_idx = None
         self.trace = None
         self.model = None
 
-    def prepare_data(self, data):
+    def prepare_data(self, data: pd.DataFrame) -> tuple:
         """Prepare training data for model fitting.
 
+        Transforms raw game data into the format required by the
+        state-space model. Creates design matrices for each week and
+        tracks season transitions.
+
         Args:
-            data: NFL schedule data containing season, week, team names,
-            location flags, and results.
+            data: DataFrame containing game results with columns:
+                - season: Year of the game.
+                - week: Week number within the season.
+                - home_team: Name of home team.
+                - away_team: Name of away team.
+                - is_neutral: Binary flag for neutral site games.
+                - result: Point differential (home_score - away_score).
+
         Returns:
-            A tuple containing the following:
-            - Weekly feature data.
-            - Weekly observed point differentials.
-            - Binary flags for season transitions.
-            - Number of model steps (weeks).
+            Tuple containing:
+                - x_mats: List of design matrices (one per week).
+                - y_obs: List of point differentials (one per week).
+                - is_new_season: Array indicating season transitions.
+                - num_steps: Total number of time steps (weeks) in data.
         """
         train_data = data.copy()
 
-        # Team indices
+        # Create team index mapping
         teams = sorted(train_data["home_team"].unique())
         self.team_to_idx = {team: i for i, team in enumerate(teams)}
         train_data["home_idx"] = train_data["home_team"].map(self.team_to_idx)
         train_data["away_idx"] = train_data["away_team"].map(self.team_to_idx)
-        # Season indices
+
+        # Create season indices
         seasons = sorted(train_data["season"].unique())
         season_to_idx = {season: i for i, season in enumerate(seasons)}
         train_data["season_idx"] = train_data["season"].map(season_to_idx)
-        # Week indices
+
+        # Create week indices
         weeks = sorted(train_data["week"].unique())
         week_to_idx = {week: i for i, week in enumerate(weeks)}
         train_data["week_idx"] = train_data["week"].map(week_to_idx)
-        # Step indices
+
+        # Create global step indices across all seasons
         all_steps = train_data[["season_idx", "week_idx"]].drop_duplicates()
         all_steps["step_idx"] = np.arange(len(all_steps))
         train_data = pd.merge(train_data, all_steps, on=["season_idx", "week_idx"])
+
         # Build per-week design matrices and observed results
         num_steps = train_data["step_idx"].max()
         week_data = []
         for step in range(num_steps + 1):
             week_data.append(train_data[train_data["step_idx"] == step])
+
+        # Identify season transitions (week 1 of each season)
         is_new_season = (
             np.array([wd["week_idx"].iloc[0] for wd in week_data]) == 0
         ).astype("int32")
+
+        # Create design matrices and observation vectors
         x_mats = [self.build_design_matrix(week_data[i]) for i in range(num_steps + 1)]
         y_obs = [week_data[i]["result"].values for i in range(num_steps + 1)]
 
         return x_mats, y_obs, is_new_season, num_steps
 
-    def build_design_matrix(self, week_data):
+    def build_design_matrix(self, week_data: pd.DataFrame) -> np.ndarray:
         """Build design matrix for a single week of games.
 
+        Create a matrix encoding team matchups and home field advantage.
+        Each row represents one game with:
+        - +1 in the home team's column
+        - -1 in the away team's column
+        - Home field indicator in the final column
+
         Args:
-            week_data: Single week feature data.
+            week_data: DataFrame containing games for a single week.
+
         Returns:
-            A matrix encoding the week's features.
+            Design matrix of shape (n_games, num_teams + 1) where the
+            last column encodes home field advantage.
         """
         design_matrix = np.zeros((len(week_data), self.num_teams + 1))
+
         for i, row in enumerate(week_data.itertuples()):
             home = int(row.home_idx)
             away = int(row.away_idx)
@@ -88,10 +131,29 @@ class StateSpaceModel:
             design_matrix[i, home] = 1
             design_matrix[i, away] = -1
             design_matrix[i, self.num_teams] = is_home
+
         return design_matrix
 
-    def build_model(self, x_mats, y_obs, is_new_season, num_steps):
-        """Build the full PyMC state-space model."""
+    def build_model(
+        self, x_mats: list, y_obs: list, is_new_season: np.ndarray, num_steps: int
+    ) -> pm.Model:
+        """Build the full PyMC state-space model.
+
+        Constructs a hierarchical Bayesian model with:
+        - Time-varying team abilities (latent states)
+        - Different evolution dynamics for season vs. week transitions
+        - Home field advantage parameter
+        - Observation noise
+
+        Args:
+            x_mats: List of design matrices for each week.
+            y_obs: List of observed point differentials for each week.
+            is_new_season: Binary indicators for season transitions.
+            num_steps: Total number of time steps.
+
+        Returns:
+            Compiled PyMC model ready for inference.
+        """
         with pm.Model() as model:
             # ---------------------------------------------------
             # Priors
@@ -139,6 +201,7 @@ class StateSpaceModel:
                 )
                 return theta_new
 
+            # Apply evolution function across all time steps
             is_new_season_pt = pt.as_tensor(is_new_season[1:])
             theta_sequence, _ = scan(
                 fn=evolve_theta,
@@ -147,17 +210,16 @@ class StateSpaceModel:
                 non_sequences=[beta_s, beta_w, omega_s, omega_w, phi],
             )
 
-            # Concatenate initial theta with evolved sequence
+            # Combine initial and evolved states
             all_theta = pt.concatenate([theta_init[None, :], theta_sequence], axis=0)
             pm.Deterministic("theta", all_theta)
 
             # ---------------------------------------------------
             # Likelihood
             # ---------------------------------------------------
-            # Stack all design matrices and observations
+            # Pad design matrices and observations to same length
             max_games = max(x.shape[0] for x in x_mats)
 
-            # Pad design matrices and observations to same length
             x_padded = []
             y_padded = []
             mask = []
@@ -184,15 +246,15 @@ class StateSpaceModel:
             y_all = np.array(y_padded)
             mask_all = np.array(mask)
 
-            # Combine theta and alpha for prediction
+            # Combine team abilities with home field advantage
             alpha_column = pt.tile(alpha, (num_steps + 1, 1))
             theta_expanded = pt.concatenate([all_theta, alpha_column], axis=1)
 
-            # Compute predictions: x_all @ theta_expanded.T, then take diagonal
+            # Compute predictions: X @ [theta; alpha]
             mu_all = pt.batched_dot(x_all, theta_expanded[:, :, None])[:, :, 0]
             sigma_step = 1 / pm.math.sqrt(phi)
 
-            # Likelihood with mask
+            # Likelihood (only for non-padded observations)
             pm.Normal(
                 "y_obs",
                 mu=mu_all[mask_all == 1],
@@ -202,15 +264,22 @@ class StateSpaceModel:
 
         return model
 
-    def fit(self, data):
-        """Fit the state-space model to historical game data."""
+    def fit(self, data: pd.DataFrame) -> None:
+        """Fit the state-space model to historical game data.
+
+        Uses NUTS sampling to draw from the posterior distribution of
+        model parameters and latent team abilities.
+
+        Args:
+            data: DataFrame of historical games (see prepare_data).
+        """
         # Prepare data
         x_mats, y_obs, is_new_season, num_steps = self.prepare_data(data)
 
         # Build model
         self.model = self.build_model(x_mats, y_obs, is_new_season, num_steps)
 
-        # Sample
+        # Sample from posterior
         with self.model:
             self.trace = pm.sample(
                 draws=1000,
@@ -222,11 +291,12 @@ class StateSpaceModel:
                 return_inferencedata=True,
             )
 
-    def predict(self, data):
+    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate predictions with full Bayesian uncertainty.
 
-        Returns per-game win probabilities, expected score differential,
-        and percentile-based confidence intervals for both teams.
+        Produces win probabilities, expected score differentials, and
+        percentile-based confidence intervals using the full posterior
+        distribution.
 
         Args:
             data: Test data.
@@ -237,37 +307,46 @@ class StateSpaceModel:
         if self.trace is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
+        # Extract posterior samples
         theta = self.trace.posterior["theta"].values
         alpha = self.trace.posterior["alpha"].values
         beta_s = self.trace.posterior["beta_s"].values
         beta_w = self.trace.posterior["beta_w"].values
 
+        # Compute mean ability for centering
         mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
 
         percentiles = list(range(1, 100))
-
         results = []
 
         for row in data.itertuples():
+            # Get team indices
             home_team_idx = self.team_to_idx[row.home_team]
             away_team_idx = self.team_to_idx[row.away_team]
+
+            # Select evolution parameter
             beta = beta_s if row.week == 1 else beta_w
             beta = beta[:, :, None]
 
+            # Compute centered team abilities
             home_team_strength = beta * (
                 theta[:, :, -1, home_team_idx : home_team_idx + 1] - mean_theta
             )
             away_team_strength = beta * (
                 theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
             )
+
+            # Add home field advantage (zero for neutral sites)
             hfa = (
                 np.zeros_like(alpha)[:, :, None]
                 if row.is_neutral
                 else alpha[:, :, None]
             )
 
+            # Predicted point differential
             prediction = home_team_strength - away_team_strength + hfa
 
+            # Compute summary statistics and percentiles
             pred_percentiles = np.percentile(prediction, percentiles)
             home_percentiles = np.percentile(home_team_strength, percentiles)
             away_percentiles = np.percentile(away_team_strength, percentiles)
@@ -289,6 +368,7 @@ class StateSpaceModel:
                 ]
             )
 
+        # Build column names
         columns = (
             [
                 "home_team",
