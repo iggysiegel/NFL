@@ -12,7 +12,7 @@ def load_data(start_season: int, end_season: int) -> pd.DataFrame:
         end_season: The last season to include.
     Returns:
         A cleaned DataFrame containing season, week, team names,
-        location flags, spread lines, and results.
+        location flags, QB information, spread lines, and results.
     """
     current_season = nfl.get_current_season()
     current_week = nfl.get_current_week()
@@ -39,6 +39,10 @@ def load_data(start_season: int, end_season: int) -> pd.DataFrame:
             "home_team",
             "away_team",
             "is_neutral",
+            "home_qb_id",
+            "home_qb_name",
+            "away_qb_id",
+            "away_qb_name",
             "spread_line",
             "result",
         ]
