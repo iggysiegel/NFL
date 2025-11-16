@@ -11,13 +11,6 @@ Usage:
     Run backtest over specific range:
         python -m scripts.predict --start-season 2020 --start-week 1 \
                                   --end-season 2023 --end-week 18
-
-Notes:
-    - Predictions are saved to the PREDICTION_DIR as CSV files
-    - Each prediction file is named: state_space_{season}_{week:02d}.csv
-    - Existing prediction files are automatically skipped
-    - Training data starts from 2004 (5 years before first prediction)
-    - Uses a rolling 5-year training window for each prediction
 """
 
 import argparse
@@ -25,7 +18,7 @@ import argparse
 import nflreadpy as nfl
 from tqdm import tqdm
 
-from src.data import load_data
+from src.data import DataLoader
 from src.model import StateSpaceModel
 from src.paths import PREDICTION_DIR
 
@@ -48,16 +41,13 @@ def predict(
         end_season: Last season to include in backtest.
         end_week: Last week to include in backtest.
     """
-    # Get current season/week
+    # Get current season / week
     current_season = nfl.get_current_season()
     current_week = nfl.get_current_week()
 
     # If all parameters None, predict current week only
     if all(x is None for x in [start_season, start_week, end_season, end_week]):
-        print(
-            f"No parameters provided - predicting current week ({current_season} "
-            f"Week {current_week})"
-        )
+        print(f"No parameters provided - predicting ({current_season} {current_week}).")
         start_season = current_season
         start_week = current_week
         end_season = current_season
@@ -72,14 +62,14 @@ def predict(
     ):
         raise ValueError(
             "Either provide all parameters (start_season, start_week, end_season, "
-            "end_week) or none (to predict current week)"
+            "end_week) or none (to predict current week)."
         )
 
     # Validate for future weeks
     if end_season > current_season or (
         end_season == current_season and end_week > current_week
     ):
-        raise ValueError("Cannot predict future weeks")
+        raise ValueError("Cannot predict beyond current week.")
 
     # Validate start <= end
     if (start_season > end_season) or (
@@ -87,29 +77,26 @@ def predict(
     ):
         raise ValueError(
             f"Start ({start_season} Week {start_week}) must be before or equal to "
-            f"end ({end_season} Week {end_week})"
+            f"end ({end_season} Week {end_week})."
         )
 
-    # Validate data availability (need 5 years of training data)
-    if start_season < 2004:
+    # Validate data availability
+    if start_season < 2005:
         raise ValueError(
-            f"Requested training start: {start_season}, data only avilable from 2004."
+            f"Requested training start: {start_season}, data only avilable from 2005."
         )
 
     print(f"\n{'='*60}")
-    print("BACKTEST CONFIGURATION")
-    print(f"{'='*60}")
     print(
         f"Prediction range: {start_season} Week {start_week} to {end_season} "
-        f"Week {end_week}"
+        f"Week {end_week}."
     )
-    print(f"Current week: {current_season} Week {current_week}")
-    print("Training window: Rolling 5-year window")
+    print(f"Current week: {current_season} Week {current_week}.")
     print(f"{'='*60}\n")
 
-    # Load all data needed (including 5 years before start for training)
+    # Load data
     try:
-        data = load_data(start_season=start_season - 5, end_season=end_season)
+        data = DataLoader(start_season=start_season - 5, end_season=end_season).data
     except ValueError as e:
         print(f"Error loading data: {e}")
         return
@@ -122,7 +109,6 @@ def predict(
         .values.tolist()
     )
 
-    # Filter to backtest range only
     season_weeks = [
         (s, w)
         for (s, w) in season_weeks
@@ -134,17 +120,15 @@ def predict(
         print("No weeks found in the specified range.")
         return
 
-    print(f"Found {len(season_weeks)} weeks to predict\n")
-
     # Generate predictions for each week
-    for season, week in tqdm(season_weeks, desc="Backtesting"):
+    for season, week in tqdm(season_weeks):
 
         # Check if predictions already exist
         output_path = PREDICTION_DIR / f"state_space_{season}_{week:02d}.csv"
 
         if output_path.exists():
             tqdm.write(
-                f"Skipping Season {season} Week {week} - predictions already exist"
+                f"Skipping Season {season} Week {week} - prediction already exists."
             )
             continue
 
@@ -173,23 +157,25 @@ def predict(
         model = StateSpaceModel()
 
         try:
-            model.fit(train_data)
-
-            # Predict
+            model.fit(
+                data=train_data,
+                draws=1000,
+                tune=5000,
+                target_accept=0.95,
+                chains=4,
+                cores=4,
+                random_seed=42,
+            )
             week_preds = model.predict(test_data)
-
-            # Save predictions
             week_preds.to_csv(output_path, index=False)
-            tqdm.write(f"Saved predictions to {output_path.name}")
+            tqdm.write(f"Saved predictions to {output_path.name}.")
 
         except Exception as e:
-            tqdm.write(f"Error predicting Season {season} Week {week}: {e}")
+            tqdm.write(f"Error predicting Season {season} Week {week}: {e}.")
             continue
 
     # Display summary
     print(f"\n{'='*60}")
-    print("BACKTEST SUMMARY")
-    print(f"{'='*60}")
     print(f"Total weeks: {len(season_weeks)}")
     print(f"Predictions saved to: {PREDICTION_DIR}")
     print(f"{'='*60}\n")
