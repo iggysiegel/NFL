@@ -10,6 +10,7 @@ dependencies:
   - isort
   - pre-commit
   - pyarrow
+  - statsmodels
   - tqdm
   - pip
   - pip:
