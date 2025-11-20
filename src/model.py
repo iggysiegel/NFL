@@ -48,7 +48,7 @@ class StateSpaceModel:
     def __init__(self):
         """Initialize the state-space model."""
         self.num_teams = 32
-        self.num_ctx = 7
+        self.num_ctx = 6
         self.num_qbs = None
         self.team_to_idx = None
         self.qb_to_idx = None
@@ -76,7 +76,6 @@ class StateSpaceModel:
                 - away_grass_to_turf: Away cross-surface flag.
                 - away_turf_to_grass: Away cross-surface flag.
                 - rest_advantage: Rest days advantage.
-                - time_advantage: Circadian timezone advantage.
                 - home_qb_id: ID of home team's QB.
                 - away_qb_id: ID of away team's QB.
                 - result: Point differential (home_score - away_score).
@@ -188,7 +187,6 @@ class StateSpaceModel:
                 row.away_grass_to_turf - row.home_grass_to_turf,
                 row.away_turf_to_grass - row.home_turf_to_grass,
                 row.rest_advantage,
-                row.time_advantage,
             ]
             team_design[i, home] = 1.0
             team_design[i, away] = -1.0
@@ -239,21 +237,20 @@ class StateSpaceModel:
             alpha_base = pm.Normal("alpha_base", mu=2, sigma=1)
             alpha_divisional = pm.Normal("alpha_divisional", mu=0, sigma=1)
             alpha_playoff = pm.Normal("alpha_playoff", mu=0, sigma=1)
-            alpha_turf = pm.Normal("alpha_turf", mu=0, sigma=0.5)
-            alpha_grass = pm.Normal("alpha_grass", mu=0, sigma=0.5)
-            alpha_rest = pm.Normal("alpha_rest", mu=0, sigma=0.25)
-            alpha_time = pm.Normal("alpha_time", mu=0, sigma=0.25)
+            alpha_turf = pm.Normal("alpha_turf", mu=0, sigma=1)
+            alpha_grass = pm.Normal("alpha_grass", mu=0, sigma=1)
+            alpha_rest = pm.Normal("alpha_rest", mu=0, sigma=1)
 
             # ---------------------------------------------------
             # QB Ability Priors
             # ---------------------------------------------------
-            tau_qb = pm.HalfNormal("tau_qb", sigma=2.0)
-            qb_delta_raw = pm.Normal(
-                "qb_delta_raw", mu=0.0, sigma=1.0, shape=self.num_qbs
+            qb_variability = pm.HalfNormal("qb_variability", sigma=1.0)
+            qb_raw_effect = pm.Normal(
+                "qb_raw_effect", mu=0.0, sigma=1.0, shape=self.num_qbs
             )
-            qb_delta = tau_qb * qb_delta_raw
+            qb_scaled_effect = qb_variability * qb_raw_effect
             qb_ability = pm.Deterministic(
-                "qb_ability", qb_delta - pm.math.mean(qb_delta)
+                "qb_ability", qb_scaled_effect - pm.math.mean(qb_scaled_effect)
             )
 
             # ---------------------------------------------------
@@ -345,7 +342,6 @@ class StateSpaceModel:
                 alpha_turf,
                 alpha_grass,
                 alpha_rest,
-                alpha_time,
             ]
             alpha_columns = [pt.tile(a, (num_steps + 1, 1)) for a in alphas]
             theta_expanded = pt.concatenate([all_theta] + alpha_columns, axis=1)
@@ -444,7 +440,6 @@ class StateSpaceModel:
         alpha_turf = self.trace.posterior["alpha_turf"].values
         alpha_grass = self.trace.posterior["alpha_grass"].values
         alpha_rest = self.trace.posterior["alpha_rest"].values
-        alpha_time = self.trace.posterior["alpha_time"].values
         qb_ability = self.trace.posterior["qb_ability"].values
 
         # Iterate through test data
@@ -486,7 +481,6 @@ class StateSpaceModel:
                 :, :, None
             ]
             hfa_rest = row.rest_advantage * alpha_rest[:, :, None]
-            hfa_time = row.time_advantage * alpha_time[:, :, None]
             hfa = (
                 hfa_base
                 + hfa_divisional
@@ -494,10 +488,9 @@ class StateSpaceModel:
                 + hfa_turf
                 + hfa_grass
                 + hfa_rest
-                + hfa_time
             )
 
-            # Predicted point differential (team + QB + HFA)
+            # Predicted point differential
             prediction = (
                 home_team_strength
                 + home_qb_effect
@@ -547,8 +540,6 @@ class StateSpaceModel:
                     float(hfa_grass.std()),
                     float(hfa_rest.mean()),
                     float(hfa_rest.std()),
-                    float(hfa_time.mean()),
-                    float(hfa_time.std()),
                 ]
             )
 
@@ -591,8 +582,6 @@ class StateSpaceModel:
                 "hfa_grass_std",
                 "hfa_rest_mean",
                 "hfa_rest_std",
-                "hfa_time_mean",
-                "hfa_time_std",
             ]
         )
 

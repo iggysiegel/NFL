@@ -4,7 +4,6 @@ import json
 
 import nflreadpy as nfl
 import numpy as np
-import pandas as pd
 
 from src.paths import SRC_DIR
 
@@ -30,9 +29,8 @@ class DataLoader:
         self.load_config()
         self.load_data()
         self.add_game_flags()
-        self.add_rest_advantage()
         self.add_surface_advantage()
-        self.add_tz_advantage()
+        self.add_rest_advantage()
         self.select_features()
 
     def load_config(self):
@@ -67,12 +65,6 @@ class DataLoader:
         self.data["is_neutral"] = self.data["location"].map({"Home": 0, "Neutral": 1})
         self.data = self.data.rename(columns={"div_game": "is_divisional"})
         self.data["is_playoff"] = np.where(self.data["game_type"] == "REG", 0, 1)
-
-    def add_rest_advantage(self):
-        """Compute rest advantage."""
-        self.data["rest_advantage"] = (
-            self.data["home_rest"] - self.data["away_rest"]
-        ).clip(-4, 4)
 
     def add_surface_advantage(self):
         """Compute primary surface and cross-surface flags."""
@@ -115,10 +107,14 @@ class DataLoader:
 
         # Compute cross-surface flags
         self.data["home_grass_to_turf"] = (
-            (self.data["home_primary_surface"] == 0) & (self.data["is_artificial"] == 1)
+            (self.data["home_primary_surface"] == 0)
+            & (self.data["is_artificial"] == 1)
+            & (self.data["is_neutral"] == 1)
         ).astype(int)
         self.data["home_turf_to_grass"] = (
-            (self.data["home_primary_surface"] == 1) & (self.data["is_artificial"] == 0)
+            (self.data["home_primary_surface"] == 1)
+            & (self.data["is_artificial"] == 0)
+            & (self.data["is_neutral"] == 1)
         ).astype(int)
         self.data["away_grass_to_turf"] = (
             (self.data["away_primary_surface"] == 0) & (self.data["is_artificial"] == 1)
@@ -127,36 +123,11 @@ class DataLoader:
             (self.data["away_primary_surface"] == 1) & (self.data["is_artificial"] == 0)
         ).astype(int)
 
-    def add_tz_advantage(self):
-        """Compute circadian timezone advantage for each game."""
-        peak_time = pd.Timedelta(hours=14)
-
-        tz_advantages = []
-
-        for row in self.data.itertuples():
-            kickoff = pd.Timestamp(row.gametime)
-            season = row.season
-            home = row.home_team
-            away = row.away_team
-
-            def resolve_offset(team):
-                if team in self.config["timezone_offset_override"]:
-                    override = self.config["timezone_offset_override"][team]
-                    if season <= override["season"]:
-                        return override["tz_override"]
-                return self.config["timezone_offset"][team]
-
-            home_offset = pd.Timedelta(hours=resolve_offset(home))
-            away_offset = pd.Timedelta(hours=resolve_offset(away))
-
-            kickoff_td = pd.Timedelta(hours=kickoff.hour, minutes=kickoff.minute)
-
-            home_delta = abs((kickoff_td - home_offset) - peak_time)
-            away_delta = abs((kickoff_td - away_offset) - peak_time)
-
-            tz_advantages.append((away_delta - home_delta).total_seconds() / 3600.0)
-
-        self.data["time_advantage"] = tz_advantages
+    def add_rest_advantage(self):
+        """Compute rest advantage."""
+        self.data["rest_advantage"] = (
+            self.data["home_rest"] - self.data["away_rest"]
+        ).clip(-4, 4)
 
     def select_features(self):
         """Restrict dataset to modeling features."""
@@ -176,7 +147,6 @@ class DataLoader:
             "away_grass_to_turf",
             "away_turf_to_grass",
             "rest_advantage",
-            "time_advantage",
             "home_qb_id",
             "home_qb_name",
             "away_qb_id",

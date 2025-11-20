@@ -13,45 +13,5 @@
         "matrixturf": 1,
         "astroplay": 1,
         "a_turf": 1
-    },
-    "timezone_offset": {
-        "ARI": -2,
-        "ATL": 0,
-        "BAL": 0,
-        "BUF": 0,
-        "CAR": 0,
-        "CHI": -1,
-        "CIN": 0,
-        "CLE": 0,
-        "DAL": -1,
-        "DEN": -2,
-        "DET": 0,
-        "GB": -1,
-        "HOU": -1,
-        "IND": 0,
-        "JAX": 0,
-        "KC": -1,
-        "LA": -3,
-        "LAC": -3,
-        "MIA": 0,
-        "MIN": -1,
-        "NE": 0,
-        "NO": -1,
-        "NYG": 0,
-        "NYJ": 0,
-        "PHI": 0,
-        "PIT": 0,
-        "SEA": -3,
-        "SF": -3,
-        "TB": 0,
-        "TEN": -1,
-        "WAS": 0,
-        "LV": -3
-    },
-    "timezone_offset_override": {
-        "LA": {
-            "season": 2015,
-            "tz_override": -1
-        }
     }
 }
