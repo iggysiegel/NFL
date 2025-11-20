@@ -1,9 +1,16 @@
-name: nfl
+name: nfl-dev
 channels:
   - conda-forge
 dependencies:
   - pymc>=5
+  - black
+  - flake8
+  - ipykernel
+  - ipywidgets
+  - isort
+  - pre-commit
   - pyarrow
+  - statsmodels
   - tqdm
   - pip
   - pip:
