@@ -160,7 +160,7 @@ def predict(
             model.fit(
                 data=train_data,
                 draws=1000,
-                tune=5000,
+                tune=7000,
                 target_accept=0.95,
                 chains=4,
                 cores=4,

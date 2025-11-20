@@ -1,10 +1,4 @@
-# flake8: noqa: E402
 """A state-space model for tracking and predicting NFL team strength."""
-
-import os
-
-# https://github.com/joblib/threadpoolctl/blob/master/multiple_openmp.md
-os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 import warnings
 
@@ -382,7 +376,7 @@ class StateSpaceModel:
         self,
         data: pd.DataFrame,
         draws: int = 1000,
-        tune: int = 4000,
+        tune: int = 7000,
         target_accept: float = 0.95,
         chains: int = 4,
         cores: int = 4,
