@@ -4,6 +4,7 @@ import json
 
 import nflreadpy as nfl
 import numpy as np
+import pandas as pd
 
 from src.paths import SRC_DIR
 
@@ -28,6 +29,7 @@ class DataLoader:
 
         self.load_config()
         self.load_data()
+        self.add_open_lines()
         self.add_game_flags()
         self.add_surface_advantage()
         self.add_rest_advantage()
@@ -59,6 +61,22 @@ class DataLoader:
                 (self.data["season"] != self.current_season)
                 | (self.data["week"] <= self.current_week)
             ]
+
+    def add_open_lines(self):
+        """Add open spread line information."""
+        lines = pd.read_csv(
+            "https://raw.githubusercontent.com/greerreNFL/nfelomarket_data/"
+            "refs/heads/main/Data/lines.csv"
+        )
+        lines = lines[["season", "week", "home_team", "away_team", "home_spread_open"]]
+        lines = lines.rename(columns={"home_spread_open": "spread_line_open"})
+        lines["spread_line_open"] = -lines["spread_line_open"]
+        self.data = pd.merge(
+            self.data,
+            lines,
+            on=["season", "week", "home_team", "away_team"],
+            how="left",
+        )
 
     def add_game_flags(self):
         """Add neutral site, divisional, and playoff flags."""
@@ -151,6 +169,7 @@ class DataLoader:
             "home_qb_name",
             "away_qb_id",
             "away_qb_name",
+            "spread_line_open",
             "spread_line",
             "result",
         ]
