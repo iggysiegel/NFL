@@ -1,5 +1,6 @@
 """A state-space model for tracking and predicting NFL team strength."""
 
+import pickle
 import warnings
 
 import numpy as np
@@ -7,6 +8,8 @@ import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
 from pytensor import scan
+
+from src.paths import MODEL_DIR
 
 # Suppress PyTensor warnings
 warnings.filterwarnings(
@@ -586,3 +589,46 @@ class StateSpaceModel:
         )
 
         return pd.DataFrame(results, columns=columns)
+
+    def save_model(
+        self, path: str = MODEL_DIR / "model.pkl", overwrite: bool = True
+    ) -> None:
+        """Save the fitted state-space model to disk.
+
+        Args:
+            path: Optional path to save the model file.
+            overwrite: If True, delete all files in target directory
+                before saving.
+        """
+        if self.trace is None:
+            raise ValueError("Model not fitted. Call fit() first.")
+
+        if overwrite:
+            for file in MODEL_DIR.glob("*"):
+                if file.is_file():
+                    file.unlink()
+
+        save_dict = {
+            "trace": self.trace,
+            "team_to_idx": self.team_to_idx,
+            "qb_to_idx": self.qb_to_idx,
+        }
+
+        with open(path, "wb") as f:
+            pickle.dump(save_dict, f)
+
+    def load_model(self, path: str = MODEL_DIR / "model.pkl") -> None:
+        """Load a previously saved state-space model from disk.
+
+        Args:
+            path: Optional path to load the model file.
+        """
+        if not path.exists():
+            raise FileNotFoundError(f"Model file not found: {path}")
+
+        with open(path, "rb") as f:
+            save_dict = pickle.load(f)
+
+        self.trace = save_dict["trace"]
+        self.team_to_idx = save_dict["team_to_idx"]
+        self.qb_to_idx = save_dict["qb_to_idx"]

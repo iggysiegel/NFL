@@ -28,6 +28,12 @@ def predict(
     start_week: int = None,
     end_season: int = None,
     end_week: int = None,
+    draws: int = 1000,
+    tune: int = 7000,
+    target_accept: float = 0.95,
+    chains: int = 4,
+    cores: int = 4,
+    random_seed: int = 42,
 ) -> None:
     """Generate predictions for each week using a 5-year training set.
 
@@ -40,12 +46,18 @@ def predict(
         start_week: First week to include in backtest.
         end_season: Last season to include in backtest.
         end_week: Last week to include in backtest.
+        draws: Number of posterior samples per chain.
+        tune: Number of tuning steps.
+        target_accept: Target acceptance probability for NUTS.
+        chains: Number of MCMC chains.
+        cores: Number of CPU cores to use.
+        random_seed: Random seed for reproducibility.
     """
     # Get current season / week
     current_season = nfl.get_current_season()
     current_week = nfl.get_current_week()
 
-    # If all parameters None, predict current week only
+    # If all backtest parameters are None, predict current week only
     if all(x is None for x in [start_season, start_week, end_season, end_week]):
         print(f"No parameters provided - predicting ({current_season} {current_week}).")
         start_season = current_season
@@ -53,7 +65,7 @@ def predict(
         end_season = current_season
         end_week = current_week
 
-    # Validate that all parameters are provided together
+    # Validate that all backtest parameters are provided together
     if (
         start_season is None
         or start_week is None
@@ -71,7 +83,7 @@ def predict(
     ):
         raise ValueError("Cannot predict beyond current week.")
 
-    # Validate start <= end
+    # Validate start les than end
     if (start_season > end_season) or (
         start_season == end_season and start_week > end_week
     ):
@@ -159,16 +171,20 @@ def predict(
         try:
             model.fit(
                 data=train_data,
-                draws=1000,
-                tune=7000,
-                target_accept=0.95,
-                chains=4,
-                cores=4,
-                random_seed=42,
+                draws=draws,
+                tune=tune,
+                target_accept=target_accept,
+                chains=chains,
+                cores=cores,
+                random_seed=random_seed,
             )
             week_preds = model.predict(test_data)
             week_preds.to_csv(output_path, index=False)
             tqdm.write(f"Saved predictions to {output_path.name}.")
+
+            if season == current_season and week == current_season:
+                model.save_model()
+                tqdm.write("Saved model for current week.")
 
         except Exception as e:
             tqdm.write(f"Error predicting Season {season} Week {week}: {e}.")
@@ -210,6 +226,25 @@ def main():
         default=None,
         help="Last week to include in backtest. If omitted, predicts current week.",
     )
+    parser.add_argument(
+        "--draws", type=int, default=1000, help="Number of posterior samples per chain."
+    )
+    parser.add_argument(
+        "--tune", type=int, default=7000, help="Number of tuning steps."
+    )
+    parser.add_argument(
+        "--target-accept",
+        type=float,
+        default=0.95,
+        help="Target acceptance probability for NUTS.",
+    )
+    parser.add_argument("--chains", type=int, default=4, help="Number of MCMC chains.")
+    parser.add_argument(
+        "--cores", type=int, default=4, help="Number of CPU cores to use."
+    )
+    parser.add_argument(
+        "--random-seed", type=int, default=42, help="Random seed for reproducibility."
+    )
 
     args = parser.parse_args()
 
@@ -218,6 +253,12 @@ def main():
         start_week=args.start_week,
         end_season=args.end_season,
         end_week=args.end_week,
+        draws=args.draws,
+        tune=args.tune,
+        target_accept=args.target_accept,
+        chains=args.chains,
+        cores=args.cores,
+        random_seed=args.random_seed,
     )
 
 
