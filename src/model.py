@@ -1,5 +1,6 @@
 """A state-space model for tracking and predicting NFL team strength."""
 
+import gzip
 import pickle
 import warnings
 
@@ -412,6 +413,20 @@ class StateSpaceModel:
                 return_inferencedata=True,
             )
 
+    def _get_posterior(self, var: str) -> np.ndarray:
+        """Helper function to get the posterior for a given variable.
+
+        Args:
+            var: Name of the variable to extract.
+
+        Returns:
+            Posterior samples as a NumPy array.
+        """
+        if isinstance(self.trace, dict):
+            return self.trace[var]
+        else:
+            return self.trace.posterior[var].values
+
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate predictions with full Bayesian uncertainty.
 
@@ -433,17 +448,17 @@ class StateSpaceModel:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract posterior samples
-        theta = self.trace.posterior["theta"].values
+        theta = self._get_posterior("theta")
         mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
-        beta_s = self.trace.posterior["beta_s"].values
-        beta_w = self.trace.posterior["beta_w"].values
-        alpha_base = self.trace.posterior["alpha_base"].values
-        alpha_divisional = self.trace.posterior["alpha_divisional"].values
-        alpha_playoff = self.trace.posterior["alpha_playoff"].values
-        alpha_turf = self.trace.posterior["alpha_turf"].values
-        alpha_grass = self.trace.posterior["alpha_grass"].values
-        alpha_rest = self.trace.posterior["alpha_rest"].values
-        qb_ability = self.trace.posterior["qb_ability"].values
+        beta_s = self._get_posterior("beta_s")
+        beta_w = self._get_posterior("beta_w")
+        alpha_base = self._get_posterior("alpha_base")
+        alpha_divisional = self._get_posterior("alpha_divisional")
+        alpha_playoff = self._get_posterior("alpha_playoff")
+        alpha_turf = self._get_posterior("alpha_turf")
+        alpha_grass = self._get_posterior("alpha_grass")
+        alpha_rest = self._get_posterior("alpha_rest")
+        qb_ability = self._get_posterior("qb_ability")
 
         # Iterate through test data
         results = []
@@ -591,7 +606,7 @@ class StateSpaceModel:
         return pd.DataFrame(results, columns=columns)
 
     def save_model(
-        self, path: str = MODEL_DIR / "model.pkl", overwrite: bool = True
+        self, path: str = MODEL_DIR / "model.pkl.gz", overwrite: bool = True
     ) -> None:
         """Save the fitted state-space model to disk.
 
@@ -609,24 +624,27 @@ class StateSpaceModel:
                     file.unlink()
 
         save_dict = {
-            "trace": self.trace,
             "team_to_idx": self.team_to_idx,
             "qb_to_idx": self.qb_to_idx,
         }
+        arrays = {}
+        for var in self.trace.posterior.data_vars:
+            arrays[var] = self.trace.posterior[var].values.astype(np.float32)
+        save_dict["trace"] = arrays
 
-        with open(path, "wb") as f:
+        with gzip.open(path, "wb") as f:
             pickle.dump(save_dict, f)
 
-    def load_model(self, path: str = MODEL_DIR / "model.pkl") -> None:
+    def load_model(self, path: str = MODEL_DIR / "model.pkl.gz") -> None:
         """Load a previously saved state-space model from disk.
 
         Args:
             path: Optional path to load the model file.
         """
         if not path.exists():
-            raise FileNotFoundError(f"Model file not found: {path}")
+            raise FileNotFoundError(f"Model file not found: {path.name}")
 
-        with open(path, "rb") as f:
+        with gzip.open(path, "rb") as f:
             save_dict = pickle.load(f)
 
         self.trace = save_dict["trace"]

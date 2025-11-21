@@ -2,7 +2,8 @@
     "team_name_map": {
         "OAK": "LV",
         "SD": "LAC",
-        "STL": "LA"
+        "STL": "LA",
+        "LAR": "LA"
     },
     "surface_map": {
         "grass": 0,

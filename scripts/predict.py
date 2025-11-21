@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 from src.data import DataLoader
 from src.model import StateSpaceModel
-from src.paths import PREDICTION_DIR
+from src.paths import MODEL_DIR, PREDICTION_DIR
 
 
 def predict(
@@ -182,9 +182,11 @@ def predict(
             week_preds.to_csv(output_path, index=False)
             tqdm.write(f"Saved predictions to {output_path.name}.")
 
-            if season == current_season and week == current_season:
+            # Save model only for current week
+            if (season, week) == (current_season, current_week):
                 model.save_model()
-                tqdm.write("Saved model for current week.")
+                output_path = MODEL_DIR / "model.pkl.gz"
+                tqdm.write(f"Saved current week's model to {output_path.name}.")
 
         except Exception as e:
             tqdm.write(f"Error predicting Season {season} Week {week}: {e}.")

@@ -69,6 +69,8 @@ class DataLoader:
             "refs/heads/main/Data/lines.csv"
         )
         lines = lines[["season", "week", "home_team", "away_team", "home_spread_open"]]
+        lines["home_team"] = lines["home_team"].replace(self.config["team_name_map"])
+        lines["away_team"] = lines["away_team"].replace(self.config["team_name_map"])
         lines = lines.rename(columns={"home_spread_open": "spread_line_open"})
         lines["spread_line_open"] = -lines["spread_line_open"]
         self.data = pd.merge(
