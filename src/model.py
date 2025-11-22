@@ -1,7 +1,5 @@
 """A state-space model for tracking and predicting NFL team strength."""
 
-import gzip
-import pickle
 import warnings
 
 import numpy as np
@@ -128,7 +126,12 @@ class StateSpaceModel:
         train_data["week_idx"] = train_data["week"].map(week_to_idx)
 
         # Create global step indices across all seasons
-        all_steps = train_data[["season_idx", "week_idx"]].drop_duplicates()
+        all_steps = (
+            train_data[["season_idx", "week_idx"]]
+            .drop_duplicates()
+            .sort_values(["season_idx", "week_idx"])
+            .reset_index(drop=True)
+        )
         all_steps["step_idx"] = np.arange(len(all_steps))
         train_data = pd.merge(train_data, all_steps, on=["season_idx", "week_idx"])
 
@@ -414,7 +417,7 @@ class StateSpaceModel:
             )
 
     def _get_posterior(self, var: str) -> np.ndarray:
-        """Helper function to get the posterior for a given variable.
+        """Get the posterior for a given variable from the model trace.
 
         Args:
             var: Name of the variable to extract.
@@ -425,7 +428,7 @@ class StateSpaceModel:
         if isinstance(self.trace, dict):
             return self.trace[var]
         else:
-            return self.trace.posterior[var].values
+            return self.trace.posterior[var].values.astype(np.float32)
 
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate predictions with full Bayesian uncertainty.
@@ -605,48 +608,52 @@ class StateSpaceModel:
 
         return pd.DataFrame(results, columns=columns)
 
-    def save_model(
-        self, path: str = MODEL_DIR / "model.pkl.gz", overwrite: bool = True
-    ) -> None:
-        """Save the fitted state-space model to disk.
-
-        Args:
-            path: Optional path to save the model file.
-            overwrite: If True, delete all files in target directory
-                before saving.
-        """
+    def save_model(self) -> None:
+        """Save the fitted model to disk and delete files in the model directory before
+        saving."""
         if self.trace is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
-        if overwrite:
-            for file in MODEL_DIR.glob("*"):
-                if file.is_file():
-                    file.unlink()
+        for file in MODEL_DIR.glob("*"):
+            if file.is_file():
+                file.unlink()
 
-        save_dict = {
-            "team_to_idx": self.team_to_idx,
-            "qb_to_idx": self.qb_to_idx,
+        arrays = {
+            "theta": self._get_posterior("theta"),
+            "beta_s": self._get_posterior("beta_s"),
+            "beta_w": self._get_posterior("beta_w"),
+            "alpha_base": self._get_posterior("alpha_base"),
+            "alpha_divisional": self._get_posterior("alpha_divisional"),
+            "alpha_playoff": self._get_posterior("alpha_playoff"),
+            "alpha_turf": self._get_posterior("alpha_turf"),
+            "alpha_grass": self._get_posterior("alpha_grass"),
+            "alpha_rest": self._get_posterior("alpha_rest"),
+            "qb_ability": self._get_posterior("qb_ability"),
         }
-        arrays = {}
-        for var in self.trace.posterior.data_vars:
-            arrays[var] = self.trace.posterior[var].values.astype(np.float32)
-        save_dict["trace"] = arrays
+        arrays["team_to_idx"] = np.array([self.team_to_idx], dtype=object)
+        arrays["qb_to_idx"] = np.array([self.qb_to_idx], dtype=object)
 
-        with gzip.open(path, "wb") as f:
-            pickle.dump(save_dict, f)
+        np.savez_compressed(MODEL_DIR / "model.npz", **arrays)
 
-    def load_model(self, path: str = MODEL_DIR / "model.pkl.gz") -> None:
-        """Load a previously saved state-space model from disk.
+    def load_model(self) -> None:
+        """Load a previously saved model from disk."""
+        model_path = MODEL_DIR / "model.npz"
+        if not model_path.exists():
+            raise FileNotFoundError("Model file not found.")
 
-        Args:
-            path: Optional path to load the model file.
-        """
-        if not path.exists():
-            raise FileNotFoundError(f"Model file not found: {path.name}")
+        arrays = np.load(model_path, allow_pickle=True)
 
-        with gzip.open(path, "rb") as f:
-            save_dict = pickle.load(f)
-
-        self.trace = save_dict["trace"]
-        self.team_to_idx = save_dict["team_to_idx"]
-        self.qb_to_idx = save_dict["qb_to_idx"]
+        self.trace = {
+            "theta": arrays["theta"],
+            "beta_s": arrays["beta_s"],
+            "beta_w": arrays["beta_w"],
+            "alpha_base": arrays["alpha_base"],
+            "alpha_divisional": arrays["alpha_divisional"],
+            "alpha_playoff": arrays["alpha_playoff"],
+            "alpha_turf": arrays["alpha_turf"],
+            "alpha_grass": arrays["alpha_grass"],
+            "alpha_rest": arrays["alpha_rest"],
+            "qb_ability": arrays["qb_ability"],
+        }
+        self.team_to_idx = arrays["team_to_idx"].item()
+        self.qb_to_idx = arrays["qb_to_idx"].item()
