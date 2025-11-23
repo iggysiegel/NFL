@@ -8,7 +8,7 @@ on:
 jobs:
   generate-predictions:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -41,6 +41,7 @@ jobs:
         shell: bash -el {0}
         env:
           PYTENSOR_FLAGS: "blas__ldflags=-llapack -lblas -lcblas"
+          PYTHONUNBUFFERED: "1"
         run: |
           echo "Starting NFL prediction model..."
           python -m scripts.predict --chains 4 --cores 2
