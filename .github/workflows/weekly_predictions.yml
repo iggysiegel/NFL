@@ -39,6 +39,8 @@ jobs:
 
       - name: Run prediction model
         shell: bash -el {0}
+        env:
+          PYTENSOR_FLAGS: "blas__ldflags=-llapack -lblas -lcblas"
         run: |
           echo "Starting NFL prediction model..."
           python -m scripts.predict --chains 4 --cores 2 --tune 10 --draws 10
