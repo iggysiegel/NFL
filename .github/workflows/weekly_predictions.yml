@@ -43,7 +43,7 @@ jobs:
           PYTENSOR_FLAGS: "blas__ldflags=-llapack -lblas -lcblas"
         run: |
           echo "Starting NFL prediction model..."
-          python -m scripts.predict --chains 4 --cores 2 --tune 10 --draws 10
+          python -m scripts.predict --chains 4 --cores 2
           echo "Model execution completed"
 
       - name: Verify outputs
@@ -81,9 +81,9 @@ jobs:
             echo "No changes to commit"
           else
             PRED_FILE=$(basename $PREDICTION_FILE)
-            git commit -m "Update NFL predictions - $PRED_FILE - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            git commit -m "Automated update - $(date +'%Y-%m-%d %H:%M:%S UTC') - $PRED_FILE"
             git push
-            echo "✓ Changes committed and pushed successfully"
+            echo "Changes committed and pushed successfully"
           fi
 
       - name: Summary
