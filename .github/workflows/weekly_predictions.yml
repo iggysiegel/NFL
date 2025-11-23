@@ -1,0 +1,102 @@
+name: Weekly NFL Predictions
+
+on:
+  schedule:
+    - cron: "0 10 * * 2"
+  workflow_dispatch:
+
+jobs:
+  generate-predictions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: "3.13"
+          miniconda-version: "latest"
+          activate-environment: nfl
+
+      - name: Install dependencies
+        shell: bash -el {0}
+        run: |
+          # Install conda packages
+          conda install -c conda-forge "pymc>=5" pyarrow tqdm
+
+          # Install pip packages
+          pip install nflreadpy
+
+          # Verify installation
+          python -c "import pymc; print(f'PyMC version: {pymc.__version__}')"
+          python -c "import nflreadpy; print('nflreadpy installed successfully')"
+
+      - name: Run prediction model
+        shell: bash -el {0}
+        run: |
+          echo "Starting NFL prediction model..."
+          python -m scripts.predict --chains 4 --cores 2 --tune 10 --draws 10
+          echo "Model execution completed"
+
+      - name: Verify outputs
+        run: |
+          # Check if prediction file was created
+          PREDICTION_FILE=$(find predictions/ -name "state_space_*_*.csv" -type f | sort -V | tail -n 1)
+
+          if [ -z "$PREDICTION_FILE" ]; then
+            echo "Error: No file matching pattern 'state_space_*_*.csv' found."
+            exit 1
+          fi
+
+          # Check if model file was created
+          if [ ! -f "models/model.npz" ]; then
+            echo "Error: No file matching pattern model.npz found."
+            exit 1
+          fi
+
+          echo "Prediction file created: $PREDICTION_FILE"
+          echo "Model file created: model.npz"
+          echo "PREDICTION_FILE=$PREDICTION_FILE" >> $GITHUB_ENV
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit and push changes
+        run: |
+          # Add the generated files
+          git add predictions/state_space_*_*.csv models/model.npz
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            PRED_FILE=$(basename $PREDICTION_FILE)
+            git commit -m "Update NFL predictions - $PRED_FILE - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+            echo "✓ Changes committed and pushed successfully"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+          # Find and display most recent prediction file
+          PRED_FILE=$(find predictions/ -name "state_space_*_*.csv" -type f | sort -V | tail -n 1)
+          if [ -n "$PRED_FILE" ]; then
+            echo "- **Predictions**: $(basename $PRED_FILE) generated successfully" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f "models/model.npz" ]; then
+            echo "- **Model**: Saved successfully" >> $GITHUB_STEP_SUMMARY
+          fi
