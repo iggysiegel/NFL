@@ -29,12 +29,11 @@ class StateSpaceModel:
 
     This model incorporates:
         - Time-varying team abilities (state-space evolution).
-        - Contextual home field advantage.
+        - Home field advantage.
         - Hierarchical QB effects.
 
     Attributes:
         num_teams: Number of NFL teams.
-        num_ctx: Number of contextual features.
         num_qbs: Number of unique QBs in the data.
         team_to_idx: Mapping from team names to integer indices.
         qb_to_idx: Mapping from QB names to integer indices.
@@ -50,7 +49,6 @@ class StateSpaceModel:
     def __init__(self):
         """Initialize the state-space model."""
         self.num_teams = 32
-        self.num_ctx = 6
         self.num_qbs = None
         self.team_to_idx = None
         self.qb_to_idx = None
@@ -71,13 +69,6 @@ class StateSpaceModel:
                 - home_team: Name of home team.
                 - away_team: Name of away team.
                 - is_neutral: Binary flag for neutral site games.
-                - is_divisional: Binary flag for divisional games.
-                - is_playoff: Binary flag for playoff games.
-                - home_grass_to_turf: Home cross-surface flag.
-                - home_turf_to_grass: Home cross-surface flag.
-                - away_grass_to_turf: Away cross-surface flag.
-                - away_turf_to_grass: Away cross-surface flag.
-                - rest_advantage: Rest days advantage.
                 - home_qb_id: ID of home team's QB.
                 - away_qb_id: ID of away team's QB.
                 - result: Point differential (home_score - away_score).
@@ -101,7 +92,7 @@ class StateSpaceModel:
         train_data["home_idx"] = train_data["home_team"].map(self.team_to_idx)
         train_data["away_idx"] = train_data["away_team"].map(self.team_to_idx)
 
-        # Create QB index mapping (pool single-game QBs at index 0)
+        # Create QB index mapping (pool single game QBs)
         qb_counts = pd.concat(
             [train_data["home_qb_id"], train_data["away_qb_id"]]
         ).value_counts()
@@ -168,9 +159,9 @@ class StateSpaceModel:
         Returns:
             Tuple of (team_design_matrix, qb_design_matrix):
                 - team_design_matrix:
-                    shape (n_games, num_teams + num_ctx)
+                    shape (n_games, num_teams + 1)
                     num_teams columns: +1 for home, -1 for away
-                    num_ctx columns: contextual features
+                    hfa column: +1 for home, 0 for neutral
                 - qb_design_matrix:
                     shape (n_games, num_qbs)
                     num_qbs columns: +1 for home, -1 for away
@@ -178,7 +169,7 @@ class StateSpaceModel:
         n_games = len(week_data)
 
         # Team design matrix
-        team_design = np.zeros((n_games, self.num_teams + self.num_ctx))
+        team_design = np.zeros((n_games, self.num_teams + 1))
 
         # QB design matrix
         qb_design = np.zeros((n_games, self.num_qbs))
@@ -187,23 +178,15 @@ class StateSpaceModel:
             # Teams
             home = int(row.home_idx)
             away = int(row.away_idx)
-            ctx_vals = [
-                1 - row.is_neutral,
-                row.is_divisional,
-                row.is_playoff,
-                row.away_grass_to_turf - row.home_grass_to_turf,
-                row.away_turf_to_grass - row.home_turf_to_grass,
-                row.rest_advantage,
-            ]
             team_design[i, home] = 1.0
             team_design[i, away] = -1.0
-            team_design[i, self.num_teams : self.num_teams + self.num_ctx] = ctx_vals
+            team_design[i, self.num_teams] = 1 - row.is_neutral
 
             # QBs
             home_qb = int(row.home_qb_idx)
             away_qb = int(row.away_qb_idx)
-            qb_design[i, home_qb] = 1
-            qb_design[i, away_qb] = -1
+            qb_design[i, home_qb] += 1.0
+            qb_design[i, away_qb] -= 1.0
 
         return team_design, qb_design
 
@@ -229,40 +212,26 @@ class StateSpaceModel:
         """
         with pm.Model() as model:
             # ---------------------------------------------------
-            # Team Ability Priors
+            # Priors
             # ---------------------------------------------------
             phi = pm.Gamma("phi", alpha=0.5, beta=0.5 * 100)
             omega_s = pm.Gamma("omega_s", alpha=0.5, beta=0.5 / 16)
             omega_w = pm.Gamma("omega_w", alpha=0.5, beta=0.5 / 60)
             beta_s = pm.Normal("beta_s", mu=0.98, sigma=1)
             beta_w = pm.Normal("beta_w", mu=0.995, sigma=1)
-            omega_zero = pm.Gamma("omega_0", alpha=0.5, beta=0.5 / 6)
 
-            # ---------------------------------------------------
-            # HFA Priors
-            # ---------------------------------------------------
-            alpha_base = pm.Normal("alpha_base", mu=2, sigma=1)
-            alpha_divisional = pm.Normal("alpha_divisional", mu=0, sigma=1)
-            alpha_playoff = pm.Normal("alpha_playoff", mu=0, sigma=1)
-            alpha_turf = pm.Normal("alpha_turf", mu=0, sigma=1)
-            alpha_grass = pm.Normal("alpha_grass", mu=0, sigma=1)
-            alpha_rest = pm.Normal("alpha_rest", mu=0, sigma=1)
+            alpha_base = pm.Normal("alpha_base", mu=2, sigma=0.5)
 
-            # ---------------------------------------------------
-            # QB Ability Priors
-            # ---------------------------------------------------
-            qb_variability = pm.HalfNormal("qb_variability", sigma=1.0)
-            qb_raw_effect = pm.Normal(
-                "qb_raw_effect", mu=0.0, sigma=1.0, shape=self.num_qbs
-            )
-            qb_scaled_effect = qb_variability * qb_raw_effect
-            qb_ability = pm.Deterministic(
-                "qb_ability", qb_scaled_effect - pm.math.mean(qb_scaled_effect)
-            )
+            qb_sigma = pm.HalfNormal("qb_sigma", sigma=0.5)
+            qb_raw = pm.Normal("qb_raw", mu=0, sigma=1, shape=self.num_qbs)
+            qb_scaled = qb_sigma * qb_raw
+            qb_ability = pm.Deterministic("qb_ability", qb_scaled - pt.mean(qb_scaled))
 
             # ---------------------------------------------------
             # State Evolution
             # ---------------------------------------------------
+            omega_zero = pm.Gamma("omega_0", alpha=0.5, beta=0.5 / 6)
+
             theta_init = pm.Normal(
                 "theta_0",
                 mu=0,
@@ -319,7 +288,7 @@ class StateSpaceModel:
                 if n_games < max_games:
                     pad_size = max_games - n_games
                     team_pad = np.vstack(
-                        [team_x, np.zeros((pad_size, self.num_teams + self.num_ctx))]
+                        [team_x, np.zeros((pad_size, self.num_teams + 1))]
                     )
                     qb_pad = np.vstack([qb_x, np.zeros((pad_size, self.num_qbs))])
                     y_pad = np.concatenate([y, np.zeros(pad_size)])
@@ -341,26 +310,16 @@ class StateSpaceModel:
             y_all = np.array(y_padded, dtype=np.float32)
             mask_all = np.array(mask, dtype=np.float32)
 
-            # Combine team abilities with contextual home field advantage
-            alphas = [
-                alpha_base,
-                alpha_divisional,
-                alpha_playoff,
-                alpha_turf,
-                alpha_grass,
-                alpha_rest,
-            ]
-            alpha_columns = [pt.tile(a, (num_steps + 1, 1)) for a in alphas]
-            theta_expanded = pt.concatenate([all_theta] + alpha_columns, axis=1)
-
             # Compute team-based predictions: X_team @ [theta; alpha]
+            alpha_tiled = pt.tile(alpha_base, (num_steps + 1, 1))
+            theta_expanded = pt.concatenate([all_theta, alpha_tiled], axis=1)
             mu_team = pt.batched_dot(team_all, theta_expanded[:, :, None])[:, :, 0]
 
             # Compute QB-based predictions: X_qb @ qb_ability
-            qb_ability_expanded = pt.tile(qb_ability, (num_steps + 1, 1))
-            mu_qb = pt.batched_dot(qb_all, qb_ability_expanded[:, :, None])[:, :, 0]
+            qb_ability_tiled = pt.tile(qb_ability[None, :], (num_steps + 1, 1))
+            mu_qb = pt.batched_dot(qb_all, qb_ability_tiled[:, :, None])[:, :, 0]
 
-            # Total prediction = team strength + HFA + QB difference
+            # Total prediction = team strength + HFA + QB ability
             mu_all = mu_team + mu_qb
 
             sigma_step = 1 / pm.math.sqrt(phi)
@@ -427,8 +386,7 @@ class StateSpaceModel:
         """
         if isinstance(self.trace, dict):
             return self.trace[var]
-        else:
-            return self.trace.posterior[var].values.astype(np.float32)
+        return self.trace.posterior[var].values.astype(np.float32)
 
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate predictions with full Bayesian uncertainty.
@@ -439,7 +397,7 @@ class StateSpaceModel:
             - Full point prediction distribution
             - Team strengths
             - QB effects
-            - HFA components
+            - HFA
 
         Args:
             data: Test data with columns matching training data format.
@@ -456,11 +414,6 @@ class StateSpaceModel:
         beta_s = self._get_posterior("beta_s")
         beta_w = self._get_posterior("beta_w")
         alpha_base = self._get_posterior("alpha_base")
-        alpha_divisional = self._get_posterior("alpha_divisional")
-        alpha_playoff = self._get_posterior("alpha_playoff")
-        alpha_turf = self._get_posterior("alpha_turf")
-        alpha_grass = self._get_posterior("alpha_grass")
-        alpha_rest = self._get_posterior("alpha_rest")
         qb_ability = self._get_posterior("qb_ability")
 
         # Iterate through test data
@@ -487,29 +440,12 @@ class StateSpaceModel:
             home_qb_idx = self.qb_to_idx.get(row.home_qb_id, 0)
             away_qb_idx = self.qb_to_idx.get(row.away_qb_id, 0)
 
-            # Add QB effects
+            # Compute QB effects
             home_qb_effect = qb_ability[:, :, home_qb_idx : home_qb_idx + 1]
             away_qb_effect = qb_ability[:, :, away_qb_idx : away_qb_idx + 1]
 
-            # Add home field advantage
-            hfa_base = (1 - row.is_neutral) * alpha_base[:, :, None]
-            hfa_divisional = row.is_divisional * alpha_divisional[:, :, None]
-            hfa_playoff = row.is_playoff * alpha_playoff[:, :, None]
-            hfa_turf = (row.away_grass_to_turf - row.home_grass_to_turf) * alpha_turf[
-                :, :, None
-            ]
-            hfa_grass = (row.away_turf_to_grass - row.home_turf_to_grass) * alpha_grass[
-                :, :, None
-            ]
-            hfa_rest = row.rest_advantage * alpha_rest[:, :, None]
-            hfa = (
-                hfa_base
-                + hfa_divisional
-                + hfa_playoff
-                + hfa_turf
-                + hfa_grass
-                + hfa_rest
-            )
+            # Compute home field advantage
+            hfa = (1 - row.is_neutral) * alpha_base[:, :, None]
 
             # Predicted point differential
             prediction = (
@@ -549,18 +485,6 @@ class StateSpaceModel:
                     # HFA components
                     float(hfa.mean()),
                     float(hfa.std()),
-                    float(hfa_base.mean()),
-                    float(hfa_base.std()),
-                    float(hfa_divisional.mean()),
-                    float(hfa_divisional.std()),
-                    float(hfa_playoff.mean()),
-                    float(hfa_playoff.std()),
-                    float(hfa_turf.mean()),
-                    float(hfa_turf.std()),
-                    float(hfa_grass.mean()),
-                    float(hfa_grass.std()),
-                    float(hfa_rest.mean()),
-                    float(hfa_rest.std()),
                 ]
             )
 
@@ -591,47 +515,31 @@ class StateSpaceModel:
             + [
                 "hfa_mean",
                 "hfa_std",
-                "hfa_base_mean",
-                "hfa_base_std",
-                "hfa_divisional_mean",
-                "hfa_divisional_std",
-                "hfa_playoff_mean",
-                "hfa_playoff_std",
-                "hfa_turf_mean",
-                "hfa_turf_std",
-                "hfa_grass_mean",
-                "hfa_grass_std",
-                "hfa_rest_mean",
-                "hfa_rest_std",
             ]
         )
 
         return pd.DataFrame(results, columns=columns)
 
     def save_model(self) -> None:
-        """Save the fitted model to disk and delete files in the model directory before
-        saving."""
+        """Save the fitted model to disk, overwriting previous files."""
         if self.trace is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
+        # Clear model directory
         for file in MODEL_DIR.glob("*"):
             if file.is_file():
                 file.unlink()
 
+        # Save relevant arrays
         arrays = {
             "theta": self._get_posterior("theta"),
             "beta_s": self._get_posterior("beta_s"),
             "beta_w": self._get_posterior("beta_w"),
             "alpha_base": self._get_posterior("alpha_base"),
-            "alpha_divisional": self._get_posterior("alpha_divisional"),
-            "alpha_playoff": self._get_posterior("alpha_playoff"),
-            "alpha_turf": self._get_posterior("alpha_turf"),
-            "alpha_grass": self._get_posterior("alpha_grass"),
-            "alpha_rest": self._get_posterior("alpha_rest"),
             "qb_ability": self._get_posterior("qb_ability"),
+            "team_to_idx": np.array([self.team_to_idx], dtype=object),
+            "qb_to_idx": np.array([self.qb_to_idx], dtype=object),
         }
-        arrays["team_to_idx"] = np.array([self.team_to_idx], dtype=object)
-        arrays["qb_to_idx"] = np.array([self.qb_to_idx], dtype=object)
 
         np.savez_compressed(MODEL_DIR / "model.npz", **arrays)
 
@@ -648,11 +556,6 @@ class StateSpaceModel:
             "beta_s": arrays["beta_s"],
             "beta_w": arrays["beta_w"],
             "alpha_base": arrays["alpha_base"],
-            "alpha_divisional": arrays["alpha_divisional"],
-            "alpha_playoff": arrays["alpha_playoff"],
-            "alpha_turf": arrays["alpha_turf"],
-            "alpha_grass": arrays["alpha_grass"],
-            "alpha_rest": arrays["alpha_rest"],
             "qb_ability": arrays["qb_ability"],
         }
         self.team_to_idx = arrays["team_to_idx"].item()
