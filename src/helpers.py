@@ -5,17 +5,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.paths import MODEL_DIR, PREDICTION_DIR
-
-
-def check_existence(season: int, week: int) -> bool:
-    """Check if model and predictions exist for given season / week."""
-    model_exists = (MODEL_DIR / f"model_{season}_{week:02d}.nc").exists()
-    prediction_exists = (
-        PREDICTION_DIR / f"state_space_{season}_{week:02d}.csv"
-    ).exists()
-    return model_exists and prediction_exists
-
 
 def load_all_predictions(prediction_dir: Path) -> pd.DataFrame:
     """Load all prediction files from directory.

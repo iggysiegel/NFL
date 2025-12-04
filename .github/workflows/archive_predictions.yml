@@ -1,16 +1,13 @@
-name: Update Website Weekly
+name: Archive Predictions Weekly
 
 on:
-  workflow_run:
-    workflows: ["Fit Model Weekly"]
-    types:
-      - completed
+  schedule:
+    - cron: "0 5 * * 0" # Sunday, Midnight EST
   workflow_dispatch:
 
 jobs:
-  update-website:
+  archive-predictions:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 10
 
     steps:
@@ -42,40 +39,59 @@ jobs:
           if_no_artifact_found: fail
 
       - name: Move model to correct location
+        id: move_model
         run: |
           MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f)
           if [ -n "$MODEL_FILE" ]; then
             mkdir -p models/
             cp "$MODEL_FILE" models/
-            echo "Moved model successfully"
+            MODEL_BASENAME=$(basename "$MODEL_FILE")
+            echo "model_basename=$MODEL_BASENAME" >> $GITHUB_OUTPUT
+            echo "Moved model: $MODEL_BASENAME"
           else
             echo "Error: No model file found"
             exit 1
           fi
           rm -rf temp-models/
 
-      - name: Run update script
+      - name: Run update script with save flag
         run: |
-          python -m scripts.update > docs/index.md
+          echo "Generating and saving predictions..."
+          python -m scripts.update --save-predictions
+          echo "Predictions saved successfully"
+
+      - name: Find saved prediction file
+        id: find_file
+        run: |
+          SEASON_WEEK=$(echo "${{ steps.move_model.outputs.model_basename }}" | grep -oP '\d{4}_\d{2}')
+          PREDICTION_FILE="predictions/state_space_${SEASON_WEEK}.csv"
+          if [ ! -f "$PREDICTION_FILE" ]; then
+            echo "Error: Prediction file $PREDICTION_FILE not found"
+            exit 1
+          fi
+          echo "prediction_file=$PREDICTION_FILE" >> $GITHUB_OUTPUT
+          echo "Found prediction file: $PREDICTION_FILE"
 
       - name: Configure Git
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-      - name: Commit and push website updates
+      - name: Commit and push to main
         run: |
-          git add docs/index.md
+          git add ${{ steps.find_file.outputs.prediction_file }}
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Automated website update - $(date +'%Y-%m-%d %H:%M:%S UTC')"
-            git push
+            PRED_FILE=$(basename ${{ steps.find_file.outputs.prediction_file }})
+            git commit -m "Archive predictions - $(date +'%Y-%m-%d %H:%M:%S UTC') - $PRED_FILE"
+            git push origin main
+            echo "Predictions archived to main branch successfully"
           fi
 
       - name: Summary
         if: always()
         run: |
-          echo "## Website Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Archive Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

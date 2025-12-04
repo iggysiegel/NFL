@@ -18,12 +18,12 @@ from src.data import DataLoader
 from src.helpers import (
     calculate_ats_performance,
     calculate_seasonal_accuracy,
-    check_existence,
     load_all_predictions,
     print_accuracy_summary,
     print_game_predictions,
 )
-from src.paths import PREDICTION_DIR
+from src.model import StateSpaceModel
+from src.paths import MODEL_DIR, PREDICTION_DIR
 
 
 def main():
@@ -38,6 +38,11 @@ def main():
         default=0.75,
         help="Confidence threshold (float between 0 and 1).",
     )
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Save current week's predictions to disk (default: False).",
+    )
     args = parser.parse_args()
     confidence_threshold = args.confidence_threshold
     if not (0 <= confidence_threshold <= 1):
@@ -50,40 +55,52 @@ def main():
     current_week = nfl.get_current_week()
     print(f"Current Season: {current_season}, Week: {current_week}")
 
-    # Validate if model and predictions exist
-    if not check_existence(current_season, current_week):
+    # Validate if model exists
+    model_path = MODEL_DIR / f"model_{current_season}_{current_week:02d}.nc"
+    if not model_path.exists():
         raise ValueError(
-            "Model or predictions do not exist for the current season and week. "
+            f"Model file {model_path} does not exist. "
             "Please run the prediction script first."
         )
+    model = StateSpaceModel()
+    model.load(model_path)
 
     # Load game data
     game_data = DataLoader(2000, current_season).data
 
-    # Load all predictions
-    prediction_data = load_all_predictions(PREDICTION_DIR)
+    # Load prediction data
+    historical_predictions = load_all_predictions(PREDICTION_DIR)
+    current_games = game_data[
+        (game_data["season"] == current_season) & (game_data["week"] == current_week)
+    ]
+    current_predictions = model.predict(current_games)
+    if args.save_predictions:
+        output_path = (
+            PREDICTION_DIR / f"state_space_{current_season}_{current_week:02d}.csv"
+        )
+        current_predictions.to_csv(output_path, index=False)
+    prediction_data = pd.concat(
+        [historical_predictions, current_predictions], ignore_index=True
+    )
 
-    # Merge game data with predictions
+    # Merge game data and prediction data
     merged_data = pd.merge(
         game_data,
         prediction_data,
         on=["season", "week", "home_team", "away_team"],
         how="inner",
     )
-
-    # Filter for historical / latest games
     historical_data = merged_data[
         (merged_data["season"] < current_season)
         | (
             (merged_data["season"] == current_season)
             & (merged_data["week"] < current_week)
         )
-    ].copy()
-
+    ]
     latest_game_data = merged_data[
         (merged_data["season"] == current_season)
         & (merged_data["week"] == current_week)
-    ].copy()
+    ]
 
     # Print latest predictions with betting recommendations
     if not latest_game_data.empty:
