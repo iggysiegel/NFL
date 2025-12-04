@@ -49,6 +49,29 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: fail
 
+      - name: Verify downloaded files
+        run: |
+          echo "Repository structure:"
+          ls -la
+          echo ""
+          echo "Models directory:"
+          ls -la models/ 2>/dev/null || echo "No models directory"
+          echo ""
+          echo "Predictions directory:"
+          ls -la predictions/ 2>/dev/null || echo "No predictions directory"
+
+          # Find the actual files
+          MODEL_FILE=$(find . -name "model_*_*.nc" -type f)
+          PRED_FILE=$(find . -name "state_space_*_*.csv" -type f)
+
+          echo "Model file found: $MODEL_FILE"
+          echo "Predictions file found: $PRED_FILE"
+
+          if [ -z "$MODEL_FILE" ] || [ -z "$PRED_FILE" ]; then
+            echo "Error: Required files not found"
+            exit 1
+          fi
+
       - name: Run update script
         id: update
         run: |
