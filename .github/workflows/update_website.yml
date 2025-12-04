@@ -35,7 +35,7 @@ jobs:
           workflow: fit_model.yml
           name_is_regexp: true
           name: nfl-model-.*
-          path: models/
+          path: temp-models/
           search_artifacts: true
           if_no_artifact_found: fail
 
@@ -45,32 +45,41 @@ jobs:
           workflow: fit_model.yml
           name_is_regexp: true
           name: nfl-predictions-.*
-          path: predictions/
+          path: temp-predictions/
           search_artifacts: true
           if_no_artifact_found: fail
 
-      - name: Verify downloaded files
+      - name: Move files to correct locations
         run: |
-          echo "Repository structure:"
-          ls -la
-          echo ""
-          echo "Models directory:"
-          ls -la models/ 2>/dev/null || echo "No models directory"
-          echo ""
-          echo "Predictions directory:"
-          ls -la predictions/ 2>/dev/null || echo "No predictions directory"
-
-          # Find the actual files
-          MODEL_FILE=$(find . -name "model_*_*.nc" -type f)
-          PRED_FILE=$(find . -name "state_space_*_*.csv" -type f)
-
-          echo "Model file found: $MODEL_FILE"
-          echo "Predictions file found: $PRED_FILE"
-
-          if [ -z "$MODEL_FILE" ] || [ -z "$PRED_FILE" ]; then
-            echo "Error: Required files not found"
+          # Find and move model file
+          MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f)
+          if [ -n "$MODEL_FILE" ]; then
+            mkdir -p models/
+            cp "$MODEL_FILE" models/
+            echo "Moved model: $(basename $MODEL_FILE)"
+          else
+            echo "Error: No model file found"
             exit 1
           fi
+
+          # Find and move prediction file
+          PRED_FILE=$(find temp-predictions/ -name "state_space_*_*.csv" -type f)
+          if [ -n "$PRED_FILE" ]; then
+            mkdir -p predictions/
+            cp "$PRED_FILE" predictions/
+            echo "Moved predictions: $(basename $PRED_FILE)"
+          else
+            echo "Error: No predictions file found"
+            exit 1
+          fi
+
+          # Clean up temp directories
+          rm -rf temp-models/ temp-predictions/
+
+          echo ""
+          echo "Final structure:"
+          ls -la models/
+          ls -la predictions/
 
       - name: Run update script
         id: update
