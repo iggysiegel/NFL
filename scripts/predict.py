@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 from src.data import DataLoader
 from src.model import StateSpaceModel
-from src.paths import PREDICTION_DIR
+from src.paths import MODEL_DIR, PREDICTION_DIR
 
 
 def predict(
@@ -83,7 +83,7 @@ def predict(
     ):
         raise ValueError("Cannot predict beyond current week.")
 
-    # Validate start les than end
+    # Validate start less than end
     if (start_season > end_season) or (
         start_season == end_season and start_week > end_week
     ):
@@ -184,8 +184,9 @@ def predict(
 
             # Save model only for current week
             if (season, week) == (current_season, current_week):
-                model.save_model()
-                tqdm.write("Saved current week's model to 'model.npz'.")
+                output_path = MODEL_DIR / f"model_{season}_{week:02d}.nc"
+                model.save(output_path, overwrite=True)
+                tqdm.write(f"Saved current week's model to {output_path}.")
 
         except Exception as e:
             tqdm.write(f"Error predicting Season {season} Week {week}: {e}.")

@@ -1,8 +1,15 @@
-"""Update script to refresh predictions and report model performance.
+"""Update script to refresh predictions for the current week and report historical model
+performance.
 
 Usage:
-    python -m scripts.update
+    Update with default confidence threshold:
+        python -m scripts.update
+
+    Update with custom confidence threshold:
+        python -m scripts.update --confidence-threshold 0.75
 """
+
+import argparse
 
 import nflreadpy as nfl
 import pandas as pd
@@ -18,15 +25,29 @@ from src.helpers import (
 )
 from src.paths import PREDICTION_DIR
 
-CONFIDENCE_THRESHOLD = 0.6
-
 
 def main():
     """Main execution function."""
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description="Refresh predictions and report model performance."
+    )
+    parser.add_argument(
+        "--confidence-threshold",
+        type=float,
+        default=0.75,
+        help="Confidence threshold (float between 0 and 1).",
+    )
+    args = parser.parse_args()
+    confidence_threshold = args.confidence_threshold
+    if not (0 <= confidence_threshold <= 1):
+        raise ValueError(
+            f"Confidence threshold must be between 0 and 1, got {confidence_threshold}."
+        )
+
     # Get current season and week
     current_season = nfl.get_current_season()
     current_week = nfl.get_current_week()
-
     print(f"Current Season: {current_season}, Week: {current_week}")
 
     # Validate if model and predictions exist
@@ -66,13 +87,13 @@ def main():
 
     # Print latest predictions with betting recommendations
     if not latest_game_data.empty:
-        print_game_predictions(latest_game_data, CONFIDENCE_THRESHOLD)
+        print_game_predictions(latest_game_data, confidence_threshold)
     else:
         print("No games found for current season and week.")
 
     # Calculate ATS performance on historical data
     if not historical_data.empty:
-        ats_data = calculate_ats_performance(historical_data, CONFIDENCE_THRESHOLD)
+        ats_data = calculate_ats_performance(historical_data, confidence_threshold)
         accuracy_summary = calculate_seasonal_accuracy(ats_data)
         print_accuracy_summary(accuracy_summary)
     else:

@@ -1,14 +1,15 @@
-"""A state-space model for tracking and predicting NFL team strength."""
+"""A state-space model for predicting NFL game outcomes."""
 
+import json
 import warnings
+from pathlib import Path
 
+import arviz as az
 import numpy as np
 import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
 from pytensor import scan
-
-from src.paths import MODEL_DIR
 
 # Suppress PyTensor warnings
 warnings.filterwarnings(
@@ -25,12 +26,12 @@ warnings.filterwarnings(
 
 
 class StateSpaceModel:
-    """A state-space model for NFL team strength evolution.
+    """A state-space model for predicting NFL game outcomes.
 
     This model incorporates:
         - Time-varying team abilities (state-space evolution).
+        - Static QB effects.
         - Home field advantage.
-        - Hierarchical QB effects.
 
     Attributes:
         num_teams: Number of NFL teams.
@@ -92,17 +93,12 @@ class StateSpaceModel:
         train_data["home_idx"] = train_data["home_team"].map(self.team_to_idx)
         train_data["away_idx"] = train_data["away_team"].map(self.team_to_idx)
 
-        # Create QB index mapping (pool single game QBs)
-        qb_counts = pd.concat(
-            [train_data["home_qb_id"], train_data["away_qb_id"]]
-        ).value_counts()
-        single_game_qbs = set(qb_counts[qb_counts == 1].index)
-        multiple_game_qbs = sorted([qb for qb, c in qb_counts.items() if c > 1])
-
-        self.qb_to_idx = {qb: 0 for qb in single_game_qbs}
-        self.qb_to_idx.update({qb: i + 1 for i, qb in enumerate(multiple_game_qbs)})
-        self.num_qbs = len(multiple_game_qbs) + 1
-
+        # Create QB index mapping
+        all_qbs = sorted(
+            pd.concat([train_data["home_qb_id"], train_data["away_qb_id"]]).unique()
+        )
+        self.qb_to_idx = {qb: i for i, qb in enumerate(all_qbs)}
+        self.num_qbs = len(all_qbs)
         train_data["home_qb_idx"] = train_data["home_qb_id"].map(self.qb_to_idx)
         train_data["away_qb_idx"] = train_data["away_qb_id"].map(self.qb_to_idx)
 
@@ -178,15 +174,15 @@ class StateSpaceModel:
             # Teams
             home = int(row.home_idx)
             away = int(row.away_idx)
-            team_design[i, home] = 1.0
-            team_design[i, away] = -1.0
+            team_design[i, home] += 1
+            team_design[i, away] -= 1
             team_design[i, self.num_teams] = 1 - row.is_neutral
 
             # QBs
             home_qb = int(row.home_qb_idx)
             away_qb = int(row.away_qb_idx)
-            qb_design[i, home_qb] += 1.0
-            qb_design[i, away_qb] -= 1.0
+            qb_design[i, home_qb] += 1
+            qb_design[i, away_qb] -= 1
 
         return team_design, qb_design
 
@@ -214,35 +210,43 @@ class StateSpaceModel:
             # ---------------------------------------------------
             # Priors
             # ---------------------------------------------------
+            # Overall model precision
             phi = pm.Gamma("phi", alpha=0.5, beta=0.5 * 100)
+
+            # Between-season and between-week evolution precision
             omega_s = pm.Gamma("omega_s", alpha=0.5, beta=0.5 / 16)
             omega_w = pm.Gamma("omega_w", alpha=0.5, beta=0.5 / 60)
+
+            # Between-season and between-week regression parameters
             beta_s = pm.Normal("beta_s", mu=0.98, sigma=1)
             beta_w = pm.Normal("beta_w", mu=0.995, sigma=1)
 
-            alpha_base = pm.Normal("alpha_base", mu=2, sigma=0.5)
-
-            qb_sigma = pm.HalfNormal("qb_sigma", sigma=0.5)
-            qb_raw = pm.Normal("qb_raw", mu=0, sigma=1, shape=self.num_qbs)
-            qb_scaled = qb_sigma * qb_raw
-            qb_ability = pm.Deterministic("qb_ability", qb_scaled - pt.mean(qb_scaled))
-
-            # ---------------------------------------------------
-            # State Evolution
-            # ---------------------------------------------------
-            omega_zero = pm.Gamma("omega_0", alpha=0.5, beta=0.5 / 6)
-
+            # Initial team strength precision and parameters
+            omega_init = pm.Gamma("omega_0", alpha=0.5, beta=0.5 / 6)
             theta_init = pm.Normal(
                 "theta_0",
                 mu=0,
-                sigma=1 / pt.sqrt(omega_zero * phi),
+                sigma=1 / pt.sqrt(omega_init * phi),
                 shape=self.num_teams,
             )
 
-            innovation_noise = pm.Normal(
-                "innovation_noise", mu=0, sigma=1, shape=(num_steps, self.num_teams)
+            # Team strength innovation
+            theta_innovation = pm.Normal(
+                "theta_innovation", mu=0, sigma=1, shape=(num_steps, self.num_teams)
             )
 
+            # QB ability precision and parameters
+            omega_qb = pm.Gamma("omega_qb", alpha=0.5, beta=0.5 / 16)
+            qb_raw = pm.Normal("qb_raw", mu=0, sigma=1, shape=self.num_qbs)
+            qb_scaled = qb_raw * (1 / pt.sqrt(omega_qb * phi))
+            qb_ability = pm.Deterministic("qb_ability", qb_scaled - pt.mean(qb_scaled))
+
+            # Home field advantage parameter
+            alpha_base = pm.Normal("alpha_base", mu=2, sigma=0.5)
+
+            # ---------------------------------------------------
+            # Team Strength Evolution
+            # ---------------------------------------------------
             def evolve_theta(
                 is_new_season_t,
                 innovation_t,
@@ -264,7 +268,7 @@ class StateSpaceModel:
             is_new_season_pt = pt.as_tensor(is_new_season[1:])
             theta_sequence, _ = scan(
                 fn=evolve_theta,
-                sequences=[is_new_season_pt, innovation_noise],
+                sequences=[is_new_season_pt, theta_innovation],
                 outputs_info=[theta_init],
                 non_sequences=[beta_s, beta_w, omega_s, omega_w, phi],
             )
@@ -321,8 +325,7 @@ class StateSpaceModel:
 
             # Total prediction = team strength + HFA + QB ability
             mu_all = mu_team + mu_qb
-
-            sigma_step = 1 / pm.math.sqrt(phi)
+            sigma_step = 1 / pt.sqrt(phi)
 
             # Likelihood (only for non-padded observations)
             pm.Normal(
@@ -384,8 +387,6 @@ class StateSpaceModel:
         Returns:
             Posterior samples as a NumPy array.
         """
-        if isinstance(self.trace, dict):
-            return self.trace[var]
         return self.trace.posterior[var].values.astype(np.float32)
 
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -409,12 +410,14 @@ class StateSpaceModel:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract posterior samples
-        theta = self._get_posterior("theta")
-        mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
+        phi = self._get_posterior("phi")
         beta_s = self._get_posterior("beta_s")
         beta_w = self._get_posterior("beta_w")
-        alpha_base = self._get_posterior("alpha_base")
+        theta = self._get_posterior("theta")
+        mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
+        omega_qb = self._get_posterior("omega_qb")
         qb_ability = self._get_posterior("qb_ability")
+        alpha_base = self._get_posterior("alpha_base")
 
         # Iterate through test data
         results = []
@@ -428,7 +431,7 @@ class StateSpaceModel:
             beta = beta_s if row.week == 1 else beta_w
             beta = beta[:, :, None]
 
-            # Compute centered team abilities
+            # Compute team abilities
             home_team_strength = beta * (
                 theta[:, :, -1, home_team_idx : home_team_idx + 1] - mean_theta
             )
@@ -436,13 +439,24 @@ class StateSpaceModel:
                 theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
             )
 
-            # Get QB indices
-            home_qb_idx = self.qb_to_idx.get(row.home_qb_id, 0)
-            away_qb_idx = self.qb_to_idx.get(row.away_qb_id, 0)
-
             # Compute QB effects
-            home_qb_effect = qb_ability[:, :, home_qb_idx : home_qb_idx + 1]
-            away_qb_effect = qb_ability[:, :, away_qb_idx : away_qb_idx + 1]
+            if row.home_qb_id in self.qb_to_idx:
+                home_qb_idx = self.qb_to_idx[row.home_qb_id]
+                home_qb_effect = qb_ability[:, :, home_qb_idx : home_qb_idx + 1]
+            else:
+                prior_std = (1 / np.sqrt(omega_qb * phi)).mean()
+                home_qb_effect = np.random.normal(0, prior_std, size=phi.shape)[
+                    :, :, None
+                ]
+
+            if row.away_qb_id in self.qb_to_idx:
+                away_qb_idx = self.qb_to_idx[row.away_qb_id]
+                away_qb_effect = qb_ability[:, :, away_qb_idx : away_qb_idx + 1]
+            else:
+                prior_std = (1 / np.sqrt(omega_qb * phi)).mean()
+                away_qb_effect = np.random.normal(0, prior_std, size=phi.shape)[
+                    :, :, None
+                ]
 
             # Compute home field advantage
             hfa = (1 - row.is_neutral) * alpha_base[:, :, None]
@@ -512,51 +526,47 @@ class StateSpaceModel:
                 "away_qb_effect_std",
             ]
             # HFA components
-            + [
-                "hfa_mean",
-                "hfa_std",
-            ]
+            + ["hfa_mean", "hfa_std"]
         )
 
         return pd.DataFrame(results, columns=columns)
 
-    def save_model(self) -> None:
-        """Save the fitted model to disk, overwriting previous files."""
+    def save(self, model_path: str, overwrite: bool = True) -> None:
+        """Save the fitted model to disk.
+
+        Args:
+            model_path: File path where the model trace will be saved.
+            overwrite: If true, delete existing models in directory.
+        """
         if self.trace is None:
             raise ValueError("Model not fitted. Call fit() first.")
+        idata = self.trace.copy()
 
-        # Clear model directory
-        for file in MODEL_DIR.glob("*"):
-            if file.is_file():
-                file.unlink()
+        path = Path(model_path)
+        if path.suffix == "":
+            path = path.with_suffix(".nc")
+        path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Save relevant arrays
-        arrays = {
-            "theta": self._get_posterior("theta"),
-            "beta_s": self._get_posterior("beta_s"),
-            "beta_w": self._get_posterior("beta_w"),
-            "alpha_base": self._get_posterior("alpha_base"),
-            "qb_ability": self._get_posterior("qb_ability"),
-            "team_to_idx": np.array([self.team_to_idx], dtype=object),
-            "qb_to_idx": np.array([self.qb_to_idx], dtype=object),
-        }
+        if overwrite:
+            for existing in path.parent.glob("*.nc"):
+                existing.unlink()
 
-        np.savez_compressed(MODEL_DIR / "model.npz", **arrays)
+        idata.attrs["team_to_idx"] = json.dumps(self.team_to_idx)
+        idata.attrs["qb_to_idx"] = json.dumps(self.qb_to_idx)
 
-    def load_model(self) -> None:
-        """Load a previously saved model from disk."""
-        model_path = MODEL_DIR / "model.npz"
-        if not model_path.exists():
-            raise FileNotFoundError("Model file not found.")
+        az.to_netcdf(idata, path)
 
-        arrays = np.load(model_path, allow_pickle=True)
+    def load(self, model_path: str) -> None:
+        """Load a previously saved model from disk.
 
-        self.trace = {
-            "theta": arrays["theta"],
-            "beta_s": arrays["beta_s"],
-            "beta_w": arrays["beta_w"],
-            "alpha_base": arrays["alpha_base"],
-            "qb_ability": arrays["qb_ability"],
-        }
-        self.team_to_idx = arrays["team_to_idx"].item()
-        self.qb_to_idx = arrays["qb_to_idx"].item()
+        Args:
+            model_path: File path where the model trace will be loaded.
+        """
+        path = Path(model_path)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Model file not found: {path}.")
+
+        self.trace = az.from_netcdf(path)
+        self.team_to_idx = json.loads(self.trace.attrs["team_to_idx"])
+        self.qb_to_idx = json.loads(self.trace.attrs["qb_to_idx"])
