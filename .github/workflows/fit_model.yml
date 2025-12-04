@@ -1,0 +1,98 @@
+name: Fit Model Weekly
+
+on:
+  schedule:
+    - cron: "0 10 * * 2"
+  workflow_dispatch:
+
+jobs:
+  fit-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        auto-update-conda: true
+        python-version: "3.13"
+        miniconda-version: "latest"
+        activate-environment: nfl
+
+    - name: Install dependencies
+      shell: bash -el {0}
+      run: |
+        # Install conda packages
+        conda install -c conda-forge "pymc>=5" pyarrow tqdm
+
+        # Install pip packages
+        pip install nflreadpy
+
+        # Verify installation
+        python -c "import pymc; print(f'PyMC version: {pymc.__version__}')"
+        python -c "import nflreadpy; print('nflreadpy installed successfully')"
+
+    - name: Run model
+      shell: bash -el {0}
+      env:
+        PYTENSOR_FLAGS: "blas__ldflags=-llapack -lblas -lcblas"
+        PYTHONUNBUFFERED: "1"
+      run: |
+        echo "Starting model..."
+        python -m scripts.predict --chains 4 --cores 2 --draws 10 --tune 10
+        echo "Model execution completed"
+
+    - name: Verify outputs
+      id: verify
+      run: |
+        PREDICTION_FILE=$(find predictions/ -name "state_space_*_*.csv" -type f | sort -V | tail -n 1)
+        if [ -z "$PREDICTION_FILE" ]; then
+          echo "Error: No prediction found"
+          exit 1
+        fi
+          
+        MODEL_FILE=$(find models/ -name "model_*_*.nc" -type f | sort -V | tail -n 1)
+        if [ -z "$MODEL_FILE" ]; then
+          echo "Error: No model file found"
+          exit 1
+        fi
+          
+        echo "prediction_file=$PREDICTION_FILE" >> $GITHUB_OUTPUT
+        echo "model_file=$MODEL_FILE" >> $GITHUB_OUTPUT
+        echo "Prediction file: $PREDICTION_FILE"
+        echo "Model file: $MODEL_FILE"
+
+    - name: Upload model artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nfl-model-${{ github.run_number }}
+        path: ${{ steps.verify.outputs.model_file }}
+        retention-days: 14
+
+    - name: Upload predictions artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nfl-predictions-${{ github.run_number }}
+        path: ${{ steps.verify.outputs.prediction_file }}
+        retention-days: 14
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Model Fitting Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        
+        PRED_FILE=$(find predictions/ -name "state_space_*_*.csv" -type f | sort -V | tail -n 1)
+        if [ -n "$PRED_FILE" ]; then
+          echo "- **Predictions CSV**: $(basename $PRED_FILE)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        MODEL_FILE=$(find models/ -name "model_*_*.nc" -type f | sort -V | tail -n 1)
+        if [ -n "$MODEL_FILE" ]; then
+          echo "- **Model File**: $(basename $MODEL_FILE)" >> $GITHUB_STEP_SUMMARY
+        fi

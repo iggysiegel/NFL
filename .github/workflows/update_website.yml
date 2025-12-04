@@ -1,0 +1,81 @@
+name: Update Website Weekly
+
+on:
+  workflow_run:
+    workflows: ["Fit Model Weekly"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  update-website:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install nflreadpy pandas pyarrow
+          python -c "import nflreadpy; print('nflreadpy installed successfully')"
+
+      - name: Download model artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: fit_model.yml
+          name_is_regexp: true
+          name: nfl-model-.*
+          path: models/
+          search_artifacts: true
+          if_no_artifact_found: fail
+
+      - name: Download predictions artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: fit_model.yml
+          name_is_regexp: true
+          name: nfl-predictions-.*
+          path: predictions/
+          search_artifacts: true
+          if_no_artifact_found: fail
+
+      - name: Run update script
+        id: update
+        run: |
+          python -m scripts.update > docs/index.md
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit and push website updates
+        run: |
+          git add docs/index.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Automated update - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Website Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "docs/index.md" ]; then
+            echo "- **Website**: Updated successfully" >> $GITHUB_STEP_SUMMARY
+          fi
