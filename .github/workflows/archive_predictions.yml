@@ -84,7 +84,7 @@ jobs:
             echo "No changes to commit"
           else
             PRED_FILE=$(basename ${{ steps.find_file.outputs.prediction_file }})
-            git commit -m "Archive predictions - $(date +'%Y-%m-%d %H:%M:%S UTC') - $PRED_FILE"
+            git commit -m "Automated prediction update - $(date +'%Y-%m-%d %H:%M:%S UTC') - $PRED_FILE"
             git push origin main
             echo "Predictions archived to main branch successfully"
           fi
