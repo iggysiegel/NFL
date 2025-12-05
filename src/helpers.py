@@ -264,6 +264,7 @@ def print_game_predictions(
         else:
             print("")
             print(f"### {row['away_team']} @ {row['home_team']}")
+            print("")
             print("| Metric | Value |")
             print("|--------|-------|")
             print(f"| **Predicted Spread** | {display_prediction:+.1f} |")

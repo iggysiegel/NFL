@@ -65,7 +65,6 @@ def main():
         print(f"Current Season: {current_season}, Week: {current_week}")
     if args.format == "markdown":
         last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-        print("# NFL Predictions")
         print()
         print(f"**Current Season, Week:** {current_season}, {current_week}")
         print()
