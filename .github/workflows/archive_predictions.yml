@@ -89,6 +89,14 @@ jobs:
             echo "Predictions archived to main branch successfully"
           fi
 
+      - name: Delete all model artifact
+        if: success()
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: nfl-model-*
+          useGlob: true
+          failOnError: false
+
       - name: Summary
         if: always()
         run: |

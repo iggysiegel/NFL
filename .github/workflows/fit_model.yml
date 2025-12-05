@@ -58,7 +58,7 @@ jobs:
         with:
           name: nfl-model-${{ github.run_number }}
           path: ${{ steps.verify.outputs.model_file }}
-          retention-days: 14
+          retention-days: 6
 
       - name: Summary
         if: always()
