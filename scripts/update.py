@@ -65,6 +65,12 @@ def main():
         print(f"Current Season: {current_season}, Week: {current_week}")
     if args.format == "markdown":
         last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        print(
+            "[Home](index.html) | [Weekly Predictions](upcoming.html) | "
+            "[GitHub](https://github.com/iggysiegel/NFL)"
+        )
+        print()
+        print("---")
         print()
         print(f"**Current Season, Week:** {current_season}, {current_week}")
         print()
@@ -126,6 +132,7 @@ def main():
         if args.format == "text":
             print("No games found for current season and week.")
         if args.format == "markdown":
+            print()
             print("## No games found for current season and week.")
 
     # Calculate ATS performance on historical data
@@ -137,6 +144,7 @@ def main():
         if args.format == "text":
             print("No historical data available for accuracy calculation.")
         if args.format == "markdown":
+            print()
             print("## No historical data available for accuracy calculation.")
 
 

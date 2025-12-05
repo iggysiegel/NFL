@@ -56,7 +56,7 @@ jobs:
 
       - name: Run update script
         run: |
-          python -m scripts.update --format "markdown" > docs/index.md
+          python -m scripts.update --format "markdown" > docs/upcoming.md
 
       - name: Configure Git
         run: |
@@ -65,7 +65,7 @@ jobs:
 
       - name: Commit and push website updates
         run: |
-          git add docs/index.md
+          git add docs/upcoming.md
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

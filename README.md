@@ -2,7 +2,7 @@
 
 ## Disclaimer
 
-This project is purely for personal interest. I do not encourage sports betting, and if you are using this website to sports bet you should probably go home and rethink your life...
+This project is purely for personal interest. I do not encourage sports betting, and if you are using the website to sports bet proceed carefully...
 
 ## Overview
 
