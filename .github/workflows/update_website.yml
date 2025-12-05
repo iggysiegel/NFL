@@ -56,7 +56,7 @@ jobs:
 
       - name: Run update script
         run: |
-          python -m scripts.update > docs/index.md
+          python -m scripts.update --format "markdown" > docs/index.md
 
       - name: Configure Git
         run: |

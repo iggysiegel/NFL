@@ -39,7 +39,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           echo "Starting model..."
-          python -m scripts.predict --chains 4 --cores 2 --draws 10 --tune 10
+          python -m scripts.predict --chains 4 --cores 2
           echo "Model execution completed"
 
       - name: Verify outputs
