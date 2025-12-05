@@ -6,10 +6,11 @@ Usage:
         python -m scripts.update
 
     Update with custom confidence threshold:
-        python -m scripts.update --confidence-threshold 0.75
+        python -m scripts.update --confidence-threshold 0.7
 """
 
 import argparse
+from datetime import datetime
 
 import nflreadpy as nfl
 import pandas as pd
@@ -35,13 +36,20 @@ def main():
     parser.add_argument(
         "--confidence-threshold",
         type=float,
-        default=0.75,
+        default=0.7,
         help="Confidence threshold (float between 0 and 1).",
     )
     parser.add_argument(
         "--save-predictions",
         action="store_true",
         help="Save current week's predictions to disk (default: False).",
+    )
+    parser.add_argument(
+        "--format",
+        type=str,
+        choices=["text", "markdown"],
+        default="text",
+        help="Output format: 'text' or 'markdown' (default: text).",
     )
     args = parser.parse_args()
     confidence_threshold = args.confidence_threshold
@@ -53,7 +61,15 @@ def main():
     # Get current season and week
     current_season = nfl.get_current_season()
     current_week = nfl.get_current_week()
-    print(f"Current Season: {current_season}, Week: {current_week}")
+    if args.format == "text":
+        print(f"Current Season: {current_season}, Week: {current_week}")
+    if args.format == "markdown":
+        last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        print("# NFL Predictions")
+        print()
+        print(f"**Current Season, Week:** {current_season}, {current_week}")
+        print()
+        print(f"**Last Updated:** {last_updated}")
 
     # Validate if model exists
     model_path = MODEL_DIR / f"model_{current_season}_{current_week:02d}.nc"
@@ -104,19 +120,25 @@ def main():
 
     # Print latest predictions with betting recommendations
     if not latest_game_data.empty:
-        print_game_predictions(latest_game_data, confidence_threshold)
+        print_game_predictions(
+            latest_game_data, confidence_threshold, format=args.format
+        )
     else:
-        print("No games found for current season and week.")
+        if args.format == "text":
+            print("No games found for current season and week.")
+        if args.format == "markdown":
+            print("## No games found for current season and week.")
 
     # Calculate ATS performance on historical data
     if not historical_data.empty:
         ats_data = calculate_ats_performance(historical_data, confidence_threshold)
         accuracy_summary = calculate_seasonal_accuracy(ats_data)
-        print_accuracy_summary(accuracy_summary)
+        print_accuracy_summary(accuracy_summary, format=args.format)
     else:
-        print("No historical data available for accuracy calculation.")
-
-    print("\nUpdate complete.")
+        if args.format == "text":
+            print("No historical data available for accuracy calculation.")
+        if args.format == "markdown":
+            print("## No historical data available for accuracy calculation.")
 
 
 if __name__ == "__main__":

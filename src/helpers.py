@@ -180,7 +180,7 @@ def calculate_seasonal_accuracy(ats_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def print_game_predictions(
-    predictions: pd.DataFrame, confidence_threshold: float
+    predictions: pd.DataFrame, confidence_threshold: float, format: str = "text"
 ) -> None:
     """Print predictions with betting recommendations.
 
@@ -191,26 +191,22 @@ def print_game_predictions(
     Args:
         predictions: DataFrame containing this week's game predictions.
         confidence_threshold: Minimum confidence required to bet.
+        format: Output format, either 'text' or 'markdown'.
     """
-    print("\n" + "=" * 60)
-    print("LATEST GAME PREDICTIONS")
-    print("=" * 60)
+    assert format in ["text", "markdown"], "Invalid format specified."
 
     # Calculate confidence for all games and sort by confidence
     game_data = []
     for idx in predictions.index:
         row = predictions.loc[idx]
-
         spread_idx_close = (
             calculate_spread_percentile(row, "spread_line")
             if pd.notna(row["spread_line"])
             else None
         )
-
         confidence_close = (
             abs(spread_idx_close - 50) / 50 if spread_idx_close is not None else None
         )
-
         game_data.append(
             {
                 "row": row,
@@ -218,10 +214,18 @@ def print_game_predictions(
                 "confidence": confidence_close if confidence_close is not None else -1,
             }
         )
-
-    # Sort by confidence
     game_data.sort(key=lambda x: x["confidence"], reverse=True)
 
+    # Output header
+    if format == "text":
+        print("\n" + "=" * 60)
+        print("LATEST GAME PREDICTIONS")
+        print("=" * 60)
+    else:
+        print("")
+        print("## Latest Game Predictions")
+
+    # Iterate through games
     for game in game_data:
         row = game["row"]
         spread_idx_close = game["spread_idx"]
@@ -236,88 +240,156 @@ def print_game_predictions(
         bet_team = None
         if spread_idx_close is not None:
             if spread_idx_close <= 50:
-                # Model favors home team
                 bet_side = "HOME"
                 bet_team = row["home_team"]
             else:
-                # Model favors away team
                 bet_side = "AWAY"
                 bet_team = row["away_team"]
-
         should_bet = (
             confidence_close is not None and confidence_close >= confidence_threshold
         )
 
         # Print game information
-        print(f"\n{row['away_team']} @ {row['home_team']}")
-        print(f"  Predicted Spread: {display_prediction:.1f}")
-        print(
-            f"  Market Spread: {display_spread:.1f}"
-            if display_spread is not None
-            else "  Market Spread: N/A"
-        )
+        if format == "text":
+            print(f"\n{row['away_team']} @ {row['home_team']}")
+            print(f"  Predicted Spread: {display_prediction:.1f}")
+            if display_spread is not None:
+                print(f"  Market Spread: {display_spread:.1f}")
+            else:
+                print("  Market Spread: N/A")
+            if confidence_close is not None:
+                print(f"  Confidence: {confidence_close:.1%}")
+            else:
+                print("  Confidence: N/A")
+        else:
+            print("")
+            print(f"### {row['away_team']} @ {row['home_team']}")
+            print("| Metric | Value |")
+            print("|--------|-------|")
+            print(f"| **Predicted Spread** | {display_prediction:+.1f} |")
+            if display_spread is not None:
+                print(f"| **Market Spread** | {display_spread:+.1f} |")
+            else:
+                print("| **Market Spread** | N/A |")
+            if confidence_close is not None:
+                print(f"| **Confidence** | {confidence_close:.1%} |")
+            else:
+                print("| **Confidence** | N/A |")
+            print()
 
-        if confidence_close is not None:
-            print(f"  Confidence: {confidence_close:.1%}")
-            if should_bet:
+        # Print betting recommendation
+        if confidence_close is not None and should_bet:
+            if format == "text":
                 print(f"  RECOMMEND BET: {bet_side} ({bet_team})")
             else:
-                # Calculate what spread would give us the threshold confidence
-                if bet_side == "HOME":
-                    target_spread_idx = 50 - (confidence_threshold * 50)
-                else:
-                    target_spread_idx = 50 + (confidence_threshold * 50)
+                print(f"**RECOMMEND BET: {bet_side} ({bet_team})**")
 
-                # Get the spread value at that percentile
-                target_spread_internal = row[
-                    f"prediction_ci_{int(target_spread_idx):02d}"
-                ]
+        if confidence_close is not None and not should_bet:
+            # Calculate what spread would give us the threshold confidence
+            if bet_side == "HOME":
+                target_spread_idx = 50 - (confidence_threshold * 50)
+            else:
+                target_spread_idx = 50 + (confidence_threshold * 50)
 
-                # Invert for display
-                target_spread_display = -target_spread_internal
+            # Get the spread value at that percentile
+            target_spread_internal = row[f"prediction_ci_{int(target_spread_idx):02d}"]
 
-                # Round to nearest 0.5
-                if bet_side == "HOME":
-                    target_spread_display = np.ceil(target_spread_display * 2) / 2
-                else:
-                    target_spread_display = np.floor(target_spread_display * 2) / 2
+            # Invert for display
+            target_spread_display = -target_spread_internal
 
+            # Round to nearest 0.5
+            if bet_side == "HOME":
+                target_spread_display = np.ceil(target_spread_display * 2) / 2
+            else:
+                target_spread_display = np.floor(target_spread_display * 2) / 2
+
+            if format == "text":
                 print("  Skip betting (confidence below optimal level)")
                 print(
                     f"  Bet {bet_side} ({bet_team}) if spread moves to "
                     f"{target_spread_display:.1f} or better"
                 )
+            else:
+                print("Skip betting (confidence below optimal level)")
+                print("")
+                print(
+                    f"Bet **{bet_side} ({bet_team})** if spread moves to "
+                    f"**{target_spread_display:+.1f}** or better"
+                )
 
-        else:
-            print("  Confidence: N/A")
 
-
-def print_accuracy_summary(accuracy_df: pd.DataFrame) -> None:
+def print_accuracy_summary(accuracy_df: pd.DataFrame, format: str = "text") -> None:
     """Print seasonal accuracy summary.
 
     Args:
         accuracy_df: DataFrame containing seasonal ATS accuracy.
+        format: Output format, either 'text' or 'markdown'.
     """
-    print("\n" + "=" * 60)
-    print("SEASONAL ATS ACCURACY")
-    print("=" * 60)
-    print(
-        f"\n{'Season':<10} {'Close Bets':<12} {'Close Acc':<12} "
-        f"{'Open Bets':<12} {'Open Acc':<12}"
-    )
-    print("-" * 60)
+    assert format in ["text", "markdown"], "Invalid format specified."
 
-    for row in accuracy_df.itertuples():
-        season_str = str(row.season) if row.season != "overall" else "OVERALL"
-        close_acc = (
-            f"{row.accuracy_close:.1%}" if pd.notna(row.accuracy_close) else "N/A"
-        )
-        open_acc = f"{row.accuracy_open:.1%}" if pd.notna(row.accuracy_open) else "N/A"
-
+    # Text format
+    if format == "text":
+        print("\n" + "=" * 60)
+        print("SEASONAL ATS ACCURACY")
+        print("=" * 60)
         print(
-            f"{season_str:<10} "
-            f"{row.bets_placed_close:<12.0f} "
-            f"{close_acc:<12} "
-            f"{row.bets_placed_open:<12.0f} "
-            f"{open_acc:<12}"
+            f"\n{'Season':<10} {'Close Bets':<12} {'Close Acc':<12} "
+            f"{'Open Bets':<12} {'Open Acc':<12}"
         )
+        print("-" * 60)
+
+        for row in accuracy_df.itertuples():
+            season_str = str(row.season) if row.season != "overall" else "OVERALL"
+            close_acc = (
+                f"{row.accuracy_close:.1%}" if pd.notna(row.accuracy_close) else "N/A"
+            )
+            open_acc = (
+                f"{row.accuracy_open:.1%}" if pd.notna(row.accuracy_open) else "N/A"
+            )
+
+            print(
+                f"{season_str:<10} "
+                f"{row.bets_placed_close:<12.0f} "
+                f"{close_acc:<12} "
+                f"{row.bets_placed_open:<12.0f} "
+                f"{open_acc:<12}"
+            )
+
+    else:
+        print("")
+        print("## Seasonal ATS Accuracy")
+        print("")
+        print("| Season | Close Bets | Close Acc | Open Bets | Open Acc |")
+        print("|--------|------------|-----------|-----------|----------|")
+
+        for row in accuracy_df.itertuples():
+            if row.season == "overall":
+                season_str = "**OVERALL**"
+                close_bets = f"**{row.bets_placed_close:.0f}**"
+                open_bets = f"**{row.bets_placed_open:.0f}**"
+                close_acc = (
+                    f"**{row.accuracy_close:.1%}**"
+                    if pd.notna(row.accuracy_close)
+                    else "**N/A**"
+                )
+                open_acc = (
+                    f"**{row.accuracy_open:.1%}**"
+                    if pd.notna(row.accuracy_open)
+                    else "**N/A**"
+                )
+            else:
+                season_str = str(row.season)
+                close_bets = f"{row.bets_placed_close:.0f}"
+                open_bets = f"{row.bets_placed_open:.0f}"
+                close_acc = (
+                    f"{row.accuracy_close:.1%}"
+                    if pd.notna(row.accuracy_close)
+                    else "N/A"
+                )
+                open_acc = (
+                    f"{row.accuracy_open:.1%}" if pd.notna(row.accuracy_open) else "N/A"
+                )
+            print(
+                f"| {season_str} | {close_bets} | {close_acc} | "
+                f"{open_bets} | {open_acc} |"
+            )
