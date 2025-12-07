@@ -2,7 +2,7 @@ name: Archive Predictions Weekly
 
 on:
   schedule:
-    - cron: "0 5 * * 0" # Sunday, Midnight EST
+    - cron: "0 5 * * 1" # Monday, Midnight EST
   workflow_dispatch:
 
 jobs:
@@ -91,11 +91,22 @@ jobs:
 
       - name: Delete all model artifact
         if: success()
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: nfl-model-*
-          useGlob: true
-          failOnError: false
+        run: |
+          echo: "Fetching artifacts..."
+          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate -q '.artifacts[] | select(.name | startswith("nfl-model")) | .id')
+          if [ -z "$ARTIFACTS" ]; then
+            echo "No artifacts found to delete"
+          else
+            ARTIFACT_COUNT=$(echo "$ARTIFACTS" | wc -l)
+            echo "Found $ARTIFACT_COUNT artifact(s) to delete"
+            echo "$ARTIFACTS" | while read artifact_id; do
+              echo "Deleting artifact ID: $artifact_id"
+              gh api --method DELETE repos/${{ github.repository }}/actions/artifacts/$artifact_id
+            done
+            echo "Artifact deletion completed"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
         if: always()
