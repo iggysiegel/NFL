@@ -96,13 +96,9 @@ jobs:
           if [ -z "$ARTIFACTS" ]; then
             echo "No artifacts found to delete"
           else
-            ARTIFACT_COUNT=$(echo "$ARTIFACTS" | wc -l)
-            echo "Found $ARTIFACT_COUNT artifact(s) to delete"
-            for artifact_id in $ARTIFACTS; do
-              echo "Deleting artifact ID: $artifact_id"
-              gh api --method DELETE repos/${{ github.repository }}/actions/artifacts/$artifact_id
+            for id in $ARTIFACTS; do
+              gh api --method DELETE repos/${{ github.repository }}/actions/artifacts/$id
             done
-            echo "Artifact deletion completed"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -114,7 +110,7 @@ jobs:
           if [ -z "$DEPLOYMENTS" ]; then
             echo "No deployments found to delete"
           else
-            for id in $DEPLOYMENTS; do
+            for id in $(echo "$DEPLOYMENTS" | tail -n +2); do
               gh api --method DELETE repos/${{ github.repository }}/deployments/$id
             done
           fi
