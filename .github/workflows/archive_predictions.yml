@@ -89,7 +89,7 @@ jobs:
             echo "Predictions archived to main branch successfully"
           fi
 
-      - name: Delete all model artifact
+      - name: Delete all artifacts
         if: success()
         run: |
           ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate -q '.artifacts[] | select(.name | startswith("nfl-model")) | .id')
@@ -98,11 +98,25 @@ jobs:
           else
             ARTIFACT_COUNT=$(echo "$ARTIFACTS" | wc -l)
             echo "Found $ARTIFACT_COUNT artifact(s) to delete"
-            echo "$ARTIFACTS" | while read artifact_id; do
+            for artifact_id in $ARTIFACTS; do
               echo "Deleting artifact ID: $artifact_id"
               gh api --method DELETE repos/${{ github.repository }}/actions/artifacts/$artifact_id
             done
             echo "Artifact deletion completed"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete all deployments
+        if: success()
+        run: |
+          DEPLOYMENTS=$(gh api repos/${{ github.repository }}/deployments --paginate -q '.[].id')
+          if [ -z "$DEPLOYMENTS" ]; then
+            echo "No deployments found to delete"
+          else
+            for id in $DEPLOYMENTS; do
+              gh api --method DELETE repos/${{ github.repository }}/deployments/$id
+            done
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
