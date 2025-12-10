@@ -33,7 +33,17 @@ class DataLoader:
         self.add_game_flags()
         self.add_surface_advantage()
         self.add_rest_advantage()
+        self.add_qb_experience()
         self.select_features()
+
+        # Exclude future games this season but allow current week's games
+        self.data = self.data[self.data["season"] >= self.start_season]
+        self.data = self.data[self.data["season"] <= self.end_season]
+        if self.end_season == self.current_season:
+            self.data = self.data[
+                (self.data["season"] != self.current_season)
+                | (self.data["week"] <= self.current_week)
+            ]
 
     def load_config(self):
         """Load configuration file."""
@@ -44,8 +54,7 @@ class DataLoader:
     def load_data(self):
         """Load NFL schedule data for the given season range."""
         # Load schedule data
-        seasons = list(range(self.start_season, self.end_season + 1))
-        self.data = nfl.load_schedules(seasons).to_pandas()
+        self.data = nfl.load_schedules().to_pandas()
 
         # Normalize old team abbreviations
         self.data["home_team"] = self.data["home_team"].replace(
@@ -54,13 +63,6 @@ class DataLoader:
         self.data["away_team"] = self.data["away_team"].replace(
             self.config["team_name_map"]
         )
-
-        # Exclude future games this season but allow current week's games
-        if self.end_season == self.current_season:
-            self.data = self.data[
-                (self.data["season"] != self.current_season)
-                | (self.data["week"] <= self.current_week)
-            ]
 
     def add_open_lines(self):
         """Add open spread line information."""
@@ -149,6 +151,41 @@ class DataLoader:
             self.data["home_rest"] - self.data["away_rest"]
         ).clip(-4, 4)
 
+    def add_qb_experience(self):
+        """Add QB experience features."""
+        qb_long = pd.concat(
+            [
+                self.data[["season", "week", "home_qb_id"]].rename(
+                    columns={"home_qb_id": "qb_id"}
+                ),
+                self.data[["season", "week", "away_qb_id"]].rename(
+                    columns={"away_qb_id": "qb_id"}
+                ),
+            ]
+        )
+        qb_long = qb_long.sort_values(["season", "week", "qb_id"])
+        qb_long["experience"] = qb_long.groupby("qb_id").cumcount()
+
+        home_exp = qb_long.rename(
+            columns={"qb_id": "home_qb_id", "experience": "home_qb_experience"}
+        )
+        away_exp = qb_long.rename(
+            columns={"qb_id": "away_qb_id", "experience": "away_qb_experience"}
+        )
+
+        self.data = pd.merge(
+            self.data,
+            home_exp[["season", "week", "home_qb_id", "home_qb_experience"]],
+            on=["season", "week", "home_qb_id"],
+            how="left",
+        )
+        self.data = pd.merge(
+            self.data,
+            away_exp[["season", "week", "away_qb_id", "away_qb_experience"]],
+            on=["season", "week", "away_qb_id"],
+            how="left",
+        )
+
     def select_features(self):
         """Restrict dataset to modeling features."""
         cols_to_keep = [
@@ -169,8 +206,10 @@ class DataLoader:
             "rest_advantage",
             "home_qb_id",
             "home_qb_name",
+            "home_qb_experience",
             "away_qb_id",
             "away_qb_name",
+            "away_qb_experience",
             "spread_line_open",
             "spread_line",
             "result",
