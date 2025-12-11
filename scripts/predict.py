@@ -1,6 +1,6 @@
 """Generate weekly NFL predictions using the state-space model.
 
-This script generates predictions for NFL games using a rolling 5-year
+This script generates predictions for NFL games using a rolling 3-year
 training window. It can either predict the current week or run a
 backtest over a historical range of weeks.
 
@@ -35,11 +35,11 @@ def predict(
     cores: int = 4,
     random_seed: int = 42,
 ) -> None:
-    """Generate predictions for each week using a 5-year training set.
+    """Generate predictions for each week using a 3-year training set.
 
     If all parameters are None, predicts for the current week only.
     Otherwise, runs a backtest over the specified range of weeks,
-    training a new model for each week using previous 5 years of data.
+    training a new model for each week using previous 3 years of data.
 
     Args:
         start_season: First season to include in backtest.
@@ -93,9 +93,9 @@ def predict(
         )
 
     # Validate data availability
-    if start_season < 2005:
+    if start_season < 2003:
         raise ValueError(
-            f"Requested training start: {start_season}, data only avilable from 2005."
+            f"Requested training start: {start_season}, data only avilable from 2003."
         )
 
     print(f"\n{'='*60}")
@@ -108,7 +108,7 @@ def predict(
 
     # Load data
     try:
-        data = DataLoader(start_season=start_season - 5, end_season=end_season).data
+        data = DataLoader(start_season=start_season - 3, end_season=end_season).data
     except ValueError as e:
         print(f"Error loading data: {e}")
         return
@@ -146,8 +146,8 @@ def predict(
 
         tqdm.write(f"Predicting for Season {season} Week {week}...")
 
-        # Get training data (5 years ending before current week)
-        train_start_season = season - 5
+        # Get training data (3 years ending before current week)
+        train_start_season = season - 3
         train_data = data[
             (data["season"] >= train_start_season)
             & (
