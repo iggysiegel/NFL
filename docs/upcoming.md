@@ -2,203 +2,203 @@
 
 ---
 
-**Current Season, Week:** 2025, 15
+**Current Season, Week:** 2025, 16
 
-**Last Updated:** 2025-12-09 11:39:15 UTC
+**Last Updated:** 2025-12-16 11:40:16 UTC
 
 ## Latest Game Predictions
 
-### CAR @ NO
+### CIN @ MIA
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -1.7 |
-| **Market Spread** | +2.5 |
+| **Predicted Spread** | -3.1 |
+| **Market Spread** | +1.5 |
+| **Confidence** | 68.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **HOME (MIA)** if spread moves to **+2.0** or better
+
+### SF @ IND
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +0.6 |
+| **Market Spread** | +5.5 |
 | **Confidence** | 62.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **HOME (NO)** if spread moves to **+3.5** or better
+Bet **HOME (IND)** if spread moves to **+6.5** or better
 
-### IND @ SEA
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -8.8 |
-| **Market Spread** | -13.5 |
-| **Confidence** | 62.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **AWAY (IND)** if spread moves to **-14.5** or better
-
-### NYJ @ JAX
+### ATL @ ARI
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -9.4 |
-| **Market Spread** | -12.5 |
-| **Confidence** | 48.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **AWAY (NYJ)** if spread moves to **-14.5** or better
-
-### GB @ DEN
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -0.4 |
+| **Predicted Spread** | -0.6 |
 | **Market Spread** | +2.5 |
 | **Confidence** | 48.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **HOME (DEN)** if spread moves to **+4.5** or better
+Bet **HOME (ARI)** if spread moves to **+4.5** or better
 
-### MIN @ DAL
+### LV @ HOU
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -2.7 |
-| **Market Spread** | -6.0 |
-| **Confidence** | 48.0% |
+| **Predicted Spread** | -16.6 |
+| **Market Spread** | -14.5 |
+| **Confidence** | 36.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **AWAY (MIN)** if spread moves to **-8.0** or better
+Bet **HOME (HOU)** if spread moves to **-11.5** or better
 
-### ARI @ HOU
+### LAC @ DAL
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -11.2 |
-| **Market Spread** | -9.5 |
-| **Confidence** | 30.0% |
+| **Predicted Spread** | +0.7 |
+| **Market Spread** | -1.5 |
+| **Confidence** | 34.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **HOME (HOU)** if spread moves to **-6.0** or better
+Bet **AWAY (LAC)** if spread moves to **-4.5** or better
 
-### LV @ PHI
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -13.2 |
-| **Market Spread** | -11.5 |
-| **Confidence** | 30.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (PHI)** if spread moves to **-8.0** or better
-
-### TEN @ SF
+### NE @ BAL
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -14.2 |
-| **Market Spread** | -12.5 |
-| **Confidence** | 28.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (SF)** if spread moves to **-9.0** or better
-
-### BAL @ CIN
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +1.3 |
-| **Market Spread** | +2.5 |
-| **Confidence** | 22.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (CIN)** if spread moves to **+6.0** or better
-
-### CLE @ CHI
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -6.2 |
-| **Market Spread** | -7.5 |
-| **Confidence** | 18.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **AWAY (CLE)** if spread moves to **-11.5** or better
-
-### WAS @ NYG
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -3.7 |
-| **Market Spread** | -2.5 |
-| **Confidence** | 18.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (NYG)** if spread moves to **+2.0** or better
-
-### MIA @ PIT
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -2.0 |
+| **Predicted Spread** | -5.0 |
 | **Market Spread** | -3.0 |
+| **Confidence** | 32.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **HOME (BAL)** if spread moves to **-0.0** or better
+
+### TB @ CAR
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +1.2 |
+| **Market Spread** | +3.0 |
+| **Confidence** | 30.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **HOME (CAR)** if spread moves to **+6.5** or better
+
+### JAX @ DEN
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | -1.1 |
+| **Market Spread** | -3.0 |
+| **Confidence** | 30.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **AWAY (JAX)** if spread moves to **-6.0** or better
+
+### PIT @ DET
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | -5.3 |
+| **Market Spread** | -7.0 |
+| **Confidence** | 26.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **AWAY (PIT)** if spread moves to **-10.5** or better
+
+### PHI @ WAS
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +7.8 |
+| **Market Spread** | +6.5 |
+| **Confidence** | 20.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **AWAY (PHI)** if spread moves to **+2.5** or better
+
+### BUF @ CLE
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +11.1 |
+| **Market Spread** | +10.0 |
 | **Confidence** | 16.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **AWAY (MIA)** if spread moves to **-7.0** or better
+Bet **AWAY (BUF)** if spread moves to **+5.5** or better
 
-### DET @ LA
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -4.7 |
-| **Market Spread** | -5.5 |
-| **Confidence** | 14.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **AWAY (DET)** if spread moves to **-10.0** or better
-
-### ATL @ TB
+### GB @ CHI
 
 | Metric | Value |
 |--------|-------|
-| **Predicted Spread** | -5.1 |
-| **Market Spread** | -4.5 |
-| **Confidence** | 12.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (TB)** if spread moves to **-0.0** or better
-
-### LAC @ KC
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -5.2 |
-| **Market Spread** | -4.5 |
-| **Confidence** | 12.0% |
-
-Skip betting (confidence below optimal level)
-
-Bet **HOME (KC)** if spread moves to **-0.0** or better
-
-### BUF @ NE
-
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +2.1 |
+| **Predicted Spread** | +0.9 |
 | **Market Spread** | +1.5 |
 | **Confidence** | 10.0% |
 
 Skip betting (confidence below optimal level)
 
-Bet **AWAY (BUF)** if spread moves to **-3.0** or better
+Bet **HOME (CHI)** if spread moves to **+6.0** or better
+
+### NYJ @ NO
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | -3.8 |
+| **Market Spread** | -4.5 |
+| **Confidence** | 10.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **AWAY (NYJ)** if spread moves to **-9.5** or better
+
+### LA @ SEA
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | -1.9 |
+| **Market Spread** | -1.5 |
+| **Confidence** | 6.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **HOME (SEA)** if spread moves to **+3.0** or better
+
+### MIN @ NYG
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +3.3 |
+| **Market Spread** | +3.0 |
+| **Confidence** | 4.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **AWAY (MIN)** if spread moves to **-2.0** or better
+
+### KC @ TEN
+
+| Metric | Value |
+|--------|-------|
+| **Predicted Spread** | +3.3 |
+| **Market Spread** | +3.5 |
+| **Confidence** | 4.0% |
+
+Skip betting (confidence below optimal level)
+
+Bet **HOME (TEN)** if spread moves to **+9.0** or better
 
 ## Seasonal ATS Accuracy
 
