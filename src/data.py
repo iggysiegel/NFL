@@ -34,6 +34,7 @@ class DataLoader:
         self.add_surface_advantage()
         self.add_rest_advantage()
         self.add_qb_experience()
+        self.update_current_week_qbs()
         self.select_features()
 
         # Exclude future games this season but allow current week's games
@@ -46,13 +47,13 @@ class DataLoader:
             ]
 
     def load_config(self):
-        """Load configuration file."""
+        """Load configuration file containing configuration mappings."""
         config_path = SRC_DIR / "config.json"
         with open(config_path, "r") as f:
             self.config = json.load(f)
 
     def load_data(self):
-        """Load NFL schedule data for the given season range."""
+        """Load NFL schedule data and normalize team abbreviations."""
         # Load schedule data
         self.data = nfl.load_schedules().to_pandas()
 
@@ -65,7 +66,7 @@ class DataLoader:
         )
 
     def add_open_lines(self):
-        """Add open spread line information."""
+        """Add opening spread lines from external data source."""
         lines = pd.read_csv(
             "https://raw.githubusercontent.com/greerreNFL/nfelomarket_data/"
             "refs/heads/main/Data/lines.csv"
@@ -83,13 +84,17 @@ class DataLoader:
         )
 
     def add_game_flags(self):
-        """Add neutral site, divisional, and playoff flags."""
+        """Add neutral site, divisional, and playoff game flags."""
         self.data["is_neutral"] = self.data["location"].map({"Home": 0, "Neutral": 1})
         self.data = self.data.rename(columns={"div_game": "is_divisional"})
         self.data["is_playoff"] = np.where(self.data["game_type"] == "REG", 0, 1)
 
     def add_surface_advantage(self):
-        """Compute primary surface and cross-surface flags."""
+        """Compute primary surface and identify cross-surface games.
+
+        For each team-season, determine whether they primarily play on artificial turf
+        or grass. Then identify where teams play on an unfamiliar surface.
+        """
         # Map the game surface
         self.data["is_artificial"] = self.data["surface"].map(
             self.config["surface_map"]
@@ -146,13 +151,19 @@ class DataLoader:
         ).astype(int)
 
     def add_rest_advantage(self):
-        """Compute rest advantage."""
+        """Calculate rest advantage as the difference in days of rest between teams.
+
+        Positive values indicate home team had more rest.
+        """
         self.data["rest_advantage"] = (
             self.data["home_rest"] - self.data["away_rest"]
         ).clip(-4, 4)
 
     def add_qb_experience(self):
-        """Add QB experience features."""
+        """Calculate cumulative game experience for each quarterback.
+
+        Experience is the number of games started prior to each game.
+        """
         qb_long = pd.concat(
             [
                 self.data[["season", "week", "home_qb_id"]].rename(
@@ -186,8 +197,39 @@ class DataLoader:
             how="left",
         )
 
+    def update_current_week_qbs(self):
+        """Update QBs for current week using latest depth chart data."""
+        # Load latest depth chart
+        depth = nfl.load_depth_charts().to_pandas()
+        latest_dt = depth["dt"].max()
+        depth_latest = depth[
+            (depth["dt"] == latest_dt)
+            & (depth["pos_abb"] == "QB")
+            & (depth["pos_rank"] == 1)
+        ][["team", "player_name", "gsis_id"]]
+        qb_mapping = depth_latest.set_index("team")[["player_name", "gsis_id"]].to_dict(
+            "index"
+        )
+
+        # Function to update QB info for a row
+        def update_qb_info(row):
+            if (
+                row["season"] == self.current_season
+                and row["week"] == self.current_week
+            ):
+                if row["home_team"] in qb_mapping:
+                    row["home_qb_name"] = qb_mapping[row["home_team"]]["player_name"]
+                    row["home_qb_id"] = qb_mapping[row["home_team"]]["gsis_id"]
+                if row["away_team"] in qb_mapping:
+                    row["away_qb_name"] = qb_mapping[row["away_team"]]["player_name"]
+                    row["away_qb_id"] = qb_mapping[row["away_team"]]["gsis_id"]
+            return row
+
+        # Apply the update
+        self.data = self.data.apply(update_qb_info, axis=1)
+
     def select_features(self):
-        """Restrict dataset to modeling features."""
+        """Restrict dataset to final modeling features."""
         cols_to_keep = [
             "season",
             "week",
