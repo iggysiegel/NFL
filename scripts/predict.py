@@ -29,7 +29,7 @@ def predict(
     end_season: int = None,
     end_week: int = None,
     draws: int = 1000,
-    tune: int = 7000,
+    tune: int = 9000,
     target_accept: float = 0.95,
     chains: int = 4,
     cores: int = 4,
@@ -232,7 +232,7 @@ def main():
         "--draws", type=int, default=1000, help="Number of posterior samples per chain."
     )
     parser.add_argument(
-        "--tune", type=int, default=7000, help="Number of tuning steps."
+        "--tune", type=int, default=9000, help="Number of tuning steps."
     )
     parser.add_argument(
         "--target-accept",

@@ -426,7 +426,7 @@ class StateSpaceModel:
         self,
         data: pd.DataFrame,
         draws: int = 1000,
-        tune: int = 7000,
+        tune: int = 9000,
         target_accept: float = 0.95,
         chains: int = 4,
         cores: int = 4,
