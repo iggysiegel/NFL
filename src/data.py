@@ -33,8 +33,8 @@ class DataLoader:
         self.add_game_flags()
         self.add_surface_advantage()
         self.add_rest_advantage()
-        self.add_qb_experience()
         self.update_current_week_qbs()
+        self.add_qb_experience()
         self.select_features()
 
         # Exclude future games this season but allow current week's games
@@ -151,13 +151,39 @@ class DataLoader:
         ).astype(int)
 
     def add_rest_advantage(self):
-        """Calculate rest advantage as the difference in days of rest between teams.
+        """Calculate rest advantage as the difference in days of rest between teams."""
+        self.data["rest_advantage"] = self.data["home_rest"] - self.data["away_rest"]
 
-        Positive values indicate home team had more rest.
-        """
-        self.data["rest_advantage"] = (
-            self.data["home_rest"] - self.data["away_rest"]
-        ).clip(-4, 4)
+    def update_current_week_qbs(self):
+        """Update QBs for current week using latest depth chart data."""
+        # Load latest depth chart
+        depth = nfl.load_depth_charts().to_pandas()
+        latest_dt = depth["dt"].max()
+        depth_latest = depth[
+            (depth["dt"] == latest_dt)
+            & (depth["pos_abb"] == "QB")
+            & (depth["pos_rank"] == 1)
+        ][["team", "player_name", "gsis_id"]]
+        qb_mapping = depth_latest.set_index("team")[["player_name", "gsis_id"]].to_dict(
+            "index"
+        )
+
+        # Function to update QB info for a row
+        def update_qb_info(row):
+            if (
+                row["season"] == self.current_season
+                and row["week"] == self.current_week
+            ):
+                if row["home_team"] in qb_mapping:
+                    row["home_qb_name"] = qb_mapping[row["home_team"]]["player_name"]
+                    row["home_qb_id"] = qb_mapping[row["home_team"]]["gsis_id"]
+                if row["away_team"] in qb_mapping:
+                    row["away_qb_name"] = qb_mapping[row["away_team"]]["player_name"]
+                    row["away_qb_id"] = qb_mapping[row["away_team"]]["gsis_id"]
+            return row
+
+        # Apply the update
+        self.data = self.data.apply(update_qb_info, axis=1)
 
     def add_qb_experience(self):
         """Calculate cumulative game experience for each quarterback.
@@ -196,37 +222,6 @@ class DataLoader:
             on=["season", "week", "away_qb_id"],
             how="left",
         )
-
-    def update_current_week_qbs(self):
-        """Update QBs for current week using latest depth chart data."""
-        # Load latest depth chart
-        depth = nfl.load_depth_charts().to_pandas()
-        latest_dt = depth["dt"].max()
-        depth_latest = depth[
-            (depth["dt"] == latest_dt)
-            & (depth["pos_abb"] == "QB")
-            & (depth["pos_rank"] == 1)
-        ][["team", "player_name", "gsis_id"]]
-        qb_mapping = depth_latest.set_index("team")[["player_name", "gsis_id"]].to_dict(
-            "index"
-        )
-
-        # Function to update QB info for a row
-        def update_qb_info(row):
-            if (
-                row["season"] == self.current_season
-                and row["week"] == self.current_week
-            ):
-                if row["home_team"] in qb_mapping:
-                    row["home_qb_name"] = qb_mapping[row["home_team"]]["player_name"]
-                    row["home_qb_id"] = qb_mapping[row["home_team"]]["gsis_id"]
-                if row["away_team"] in qb_mapping:
-                    row["away_qb_name"] = qb_mapping[row["away_team"]]["player_name"]
-                    row["away_qb_id"] = qb_mapping[row["away_team"]]["gsis_id"]
-            return row
-
-        # Apply the update
-        self.data = self.data.apply(update_qb_info, axis=1)
 
     def select_features(self):
         """Restrict dataset to final modeling features."""
