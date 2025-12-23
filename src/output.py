@@ -27,7 +27,7 @@ class Formatter:
         current_season = nfl.get_current_season()
         current_week = nfl.get_current_week()
         est = timezone(timedelta(hours=-5))
-        current_time = datetime.now(est).strftime("%Y-%m-%d %H:%M:%S EST")
+        current_time = datetime.now(est).strftime("%Y-%m-%d %H:%M EST")
         nav_bar = (
             "[Home](index.html) | "
             "[Weekly Predictions](upcoming.html) | "
@@ -113,8 +113,15 @@ class Formatter:
         # Team logos and names
         away_logo_path = f"images/logos/{away_team}.png"
         home_logo_path = f"images/logos/{home_team}.png"
+
+        # Determine confidence color
+        if confidence >= self.confidence_threshold:
+            confidence_color = "green"
+        else:
+            confidence_color = "red"
+
+        # Game details
         print("<div align='center'>")
-        print()
         print(
             f"<div style='display:flex; align-items:center; justify-content:center; "
             f"gap:40px; margin-bottom:12px;'>"
@@ -122,24 +129,18 @@ class Formatter:
             f"<img src='{home_logo_path}' width='80' height='80' alt='{home_team}'>"
             f"</div>"
         )
-        print()
-        print(f"**{away_team}** @ **{home_team}**")
-        print()
-        print()
-
-        # Game details
-        if confidence >= self.confidence_threshold:
-            confidence_color = "green"
-        else:
-            confidence_color = "red"
-        print(f"**Market Spread:** {game['display_spread']:.1f}")
-        print()
-        print(f"**Predicted Spread:** {game['display_prediction']:.1f}")
-        print()
         print(
-            f"**Model Confidence:** "
-            f"<span style='color:{confidence_color}; font-weight:bold;'"
-            f">{confidence:.1%}</span>"
+            f"<div style='font-size: 20px; font-weight: bold; margin-bottom: 20px;'>"
+            f"<strong>{away_team}</strong> @ <strong>{home_team}</strong>"
+            f"</div>"
         )
-        print()
+        print(
+            f"<div style='font-size: 16px; line-height: 1.8;'>"
+            f"<strong>Market Spread:</strong> {game['display_spread']:.1f}<br>"
+            f"<strong>Predicted Spread:</strong> {game['display_prediction']:.1f}<br>"
+            f"<strong>Model Confidence:</strong> "
+            f"<span style='color:{confidence_color}; "
+            f"font-weight:bold;'>{confidence:.1%}</span>"
+            f"</div>"
+        )
         print("</div>")

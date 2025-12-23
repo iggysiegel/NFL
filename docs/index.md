@@ -4,15 +4,15 @@
 
 ## About This Site
 
-Every Tuesday morning, the model generates predictions for the upcoming week. Check out [this week's predictions](upcoming.html) to see the latest forecasts!
+This website is a personal project for predicting NFL game outcomes compared to betting spread odds. The site updates every Tuesday morning. Check out [this week's predictions](upcoming.html) to see the latest forecasts.
 
 ## Overview
 
-This website is a personal project for predicting NFL game outcomes compared to betting spread odds. The underlying prediction model is based on the work of [Glickman-Stern](https://www.glicko.net/research/nfl.pdf), which develops a Bayesian state-space model that tracks team strengths as they evolve over time, accounting for both week-to-week changes due to injuries, and season-to-season changes due to roster turnover.
+The underlying prediction model is based on the work of [Glickman-Stern](https://www.glicko.net/research/nfl.pdf), which develops a Bayesian state-space model that tracks team strengths as they evolve over time, accounting for both week-to-week changes due to injuries, and season-to-season changes due to roster turnover.
 
-The biggest weaknesses of the original formulation is its inability to capture individual quarterback effects. When Patrick Mahomes is injured, the model does not immediately recognize this, or know how much to penalize the Kansas City Chiefs. In my extension of the model, I add explicit quarterback effects, with initial adjustments based on career experience (rookies vs. established veterans).
+The biggest weaknesses of the original formulation is its inability to capture individual quarterback effects. When Patrick Mahomes is injured, the model does not immediately recognize the injury or know how much to penalize the Kansas City Chiefs. In my extension of the model, I add explicit quarterback effects, with initial adjustments based on career experience (rookies vs. established veterans).
 
-Unlike simpler rating systems such as ELO, the fully Bayesian approach offers several advantages. Instead of a single point estimate for the outcome of a game, the state-space approach creates a full probability distribution of outcomes, where the predictions account for uncertainty in all model parameters.
+Unlike simpler rating systems such as ELO, the fully Bayesian approach offers a major advantage. Instead of a single point estimate for the outcome of a game, there is a full probability distribution of outcomes that account for uncertainty in all model parameters.
 
 ## Model Confidence
 
@@ -24,13 +24,13 @@ In this example, the spread lies far to the right of the model's expected distri
 
 ## Results
 
-To test whether the model translates into actual value against the spread, we test a simple betting strategy:
+To test whether model confidence translates into actual value against the spread, we test a simple betting strategy:
 
 - Define a minimum confidence threshold (e.g. 0.5). Only games where the model's confidence exceeds this threshold are considered for betting.
 - For each qualifying game, bet on whichever team the model favors (the side where the model's prediction is more extreme than the betting spread).
 - Compute against the spread accuracy using actual game results.
 
-If the model is able to capture the true underlying strengths of teams, we would expect to see high performance when the model's predictions differ significantly from the betting spread odds. The following figure demonstrates the results of this betting simulation using data from 2015 to 2025.
+If the model is able to capture the true underlying strengths of teams, we would expect to see high performance when the model has high confidence. The following figure demonstrates the results of this betting simulation using data from 2015 to 2025.
 
 ![fig2](images/fig2.svg)
 
@@ -42,8 +42,8 @@ To identify an optimal confidence threshold, we evaluated each threshold using b
 
 ## Future Work
 
-The model seems to perform well in the aggregate, but it has important blind spots. The model cannot account for mid-week developments or motivational factors such as a team already eliminated from the playoffs, and it takes time to learn new quarterback effects. When unusual circumstances arise, it's best to either skip the game entirely or adjust your confidence threshold accordingly. Simple statisical models work best under "normal" conditions where historical patterns remain relevant.
+The model seems to show signal but it is far from a perfect system. It does not account for mid-week developments or motivational factors such as if a team has already been eliminated from the playoffs, it takes time to learn new quarterback effects, and it does not track injuries outside the quarterback. When unusual circumstances arise, it's best to either skip the game entirely or adjust your confidence threshold accordingly. Simple statisical models work best under "normal" conditions where historical patterns remain relevant.
 
-Several areas could improve the model. First, home-field advantage could be made context-dependent, varying with factors like rest disparities, divisional familiarity, and game importance. Second, quarterback effects could evolve dynamically over time rather than remaining static across three-year periods. Finally, modeling efficiency metrics like EPA or WPA instead of raw point differentials might better capture underlying team and quarterback performance.
+Several areas could improve the model. First, home-field advantage could be made context-dependent, varying with factors like rest disparities, divisional familiarity, and game importance. Quarterback effects could evolve dynamically over time rather than remaining static across three-year periods. Finally, modeling efficiency metrics like EPA or WPA instead of raw point differentials might better capture underlying team and quarterback performance.
 
-As a disclaimer, this project is purely for personal interest. I do not encourage sports betting, and if you are using the website to sports bet proceed carefully...
+As a disclaimer, this project is purely for personal interest. In my opinion, the betting spread odds seem to be a highly efficient market especially toward the end of the week. I do not encourage sports betting, and if you are using the website to sports bet proceed carefully...
