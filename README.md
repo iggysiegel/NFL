@@ -1,18 +1,10 @@
 # NFL Prediction Model
 
-## Disclaimer
-
-This project is purely for personal interest. I do not encourage sports betting, and if you are using the website to sports bet proceed carefully...
-
 ## Overview
 
-An extension of the [Glickman-Stern model](https://www.glicko.net/research/nfl.pdf) for NFL predictions, adding quarterback effects to estimate team and QB strength.
+An extension of the [Glickman-Stern model](https://www.glicko.net/research/nfl.pdf) for NFL predictions, adding quarterback effects.
 
-- [Visit the website](https://iggysiegel.github.io/NFL/) - See the model's weekly predictions.
-- [View the results](docs/Evaluation.ipynb) - Explore historical performance and future work.
-
-![Model Performance](docs/performance.svg)
-*Overall model performance on historical NFL games (2015 - 2025)
+- [Visit the website](https://iggysiegel.github.io/NFL/)
 
 ## Installation
 

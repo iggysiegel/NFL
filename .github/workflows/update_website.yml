@@ -1,8 +1,8 @@
-name: Update Website Weekly
+name: Update Website
 
 on:
   workflow_run:
-    workflows: ["Fit Model Weekly"]
+    workflows: ["Fit Model"]
     types:
       - completed
   workflow_dispatch:
@@ -20,34 +20,35 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup python
-        uses: actions/setup-python@v5
+      - name: Setup miniconda
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.13"
+          activate-environment: nfl
+          environment-file: environment.yml
+          python-version: 3.13
 
-      - name: Install dependencies
+      - name: Verify environment
+        shell: bash -el {0}
         run: |
-          pip install nflreadpy pandas pyarrow arviz pymc
           python -c "import pymc; print(f'PyMC version: {pymc.__version__}')"
           python -c "import nflreadpy; print('nflreadpy installed successfully')"
 
-      - name: Download model artifact
-        uses: dawidd6/action-download-artifact@v3
+      - name: Download artifact
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: fit_model.yml
+          name: model-*
           name_is_regexp: true
-          name: nfl-model-.*
           path: temp-models/
           search_artifacts: true
           if_no_artifact_found: fail
 
-      - name: Move model to correct location
+      - name: Move model
         run: |
-          MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f)
+          MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f | sort -V | tail -n 1)
           if [ -n "$MODEL_FILE" ]; then
             mkdir -p models/
             cp "$MODEL_FILE" models/
-            echo "Moved model successfully"
           else
             echo "Error: No model file found"
             exit 1
@@ -72,10 +73,3 @@ jobs:
             git commit -m "Automated website update - $(date +'%Y-%m-%d %H:%M:%S UTC')"
             git push
           fi
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Website Update Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

@@ -29,7 +29,7 @@ class StateSpaceModel:
     """A state-space model for predicting NFL game outcomes.
 
     This model incorporates:
-        - Time-varying team abilities (state-space evolution).
+        - Time-varying team abilities.
         - Static QB effects.
         - Home field advantage.
 
@@ -56,12 +56,12 @@ class StateSpaceModel:
         self.trace = None
         self.model = None
 
-    def prepare_data(self, data: pd.DataFrame) -> tuple:
+    def prepare_data(self, data: pd.DataFrame) -> dict:
         """Prepare training data for model fitting.
 
         Transforms raw game data into the format required by the
         state-space model. Creates separate design matrices for teams
-        and QBs, and tracks season transitions.
+        and QBs, and tracks season transitions and QB experience.
 
         Args:
             data: DataFrame containing game results with columns:
@@ -71,16 +71,19 @@ class StateSpaceModel:
                 - away_team: Name of away team.
                 - is_neutral: Binary flag for neutral site games.
                 - home_qb_id: ID of home team's QB.
+                - home_qb_experience: Home team QB career games played.
                 - away_qb_id: ID of away team's QB.
+                - away_qb_experience: Away team QB career games played.
                 - result: Point differential (home_score - away_score).
 
         Returns:
-            Tuple containing:
+            A dict with keys:
+                - num_steps: Total number of time steps (weeks) in data.
+                - is_new_season: Array indicating season transitions.
+                - qb_experience: Mean career games played by each QB.
                 - team_mats: List of team design matrices.
                 - qb_mats: List of QB design matrices.
                 - y_obs: List of point differentials.
-                - is_new_season: Array indicating season transitions.
-                - num_steps: Total number of time steps (weeks) in data.
         """
         train_data = data.copy()
 
@@ -101,6 +104,23 @@ class StateSpaceModel:
         self.num_qbs = len(all_qbs)
         train_data["home_qb_idx"] = train_data["home_qb_id"].map(self.qb_to_idx)
         train_data["away_qb_idx"] = train_data["away_qb_id"].map(self.qb_to_idx)
+
+        # Create QB experience array
+        qb_experience = np.full(self.num_qbs, 0.0, dtype=np.float32)
+        home_exp = train_data[["home_qb_idx", "home_qb_experience"]].rename(
+            columns={"home_qb_idx": "qb_idx", "home_qb_experience": "experience"}
+        )
+        away_exp = train_data[["away_qb_idx", "away_qb_experience"]].rename(
+            columns={"away_qb_idx": "qb_idx", "away_qb_experience": "experience"}
+        )
+        long_exp = (
+            pd.concat([home_exp, away_exp])
+            .groupby("qb_idx")["experience"]
+            .mean()
+            .to_dict()
+        )
+        for qb_idx in range(self.num_qbs):
+            qb_experience[qb_idx] = long_exp.get(qb_idx, 0.0)
 
         # Create season indices
         seasons = sorted(train_data["season"].unique())
@@ -123,28 +143,35 @@ class StateSpaceModel:
         train_data = pd.merge(train_data, all_steps, on=["season_idx", "week_idx"])
 
         # Build per-week data
-        num_steps = train_data["step_idx"].max()
+        num_steps = int(train_data["step_idx"].max() + 1)
         week_data = []
-        for step in range(num_steps + 1):
+        for step in range(num_steps):
             week_data.append(train_data[train_data["step_idx"] == step])
 
         # Identify season transitions
         is_new_season = (
             np.array([wd["week_idx"].iloc[0] for wd in week_data]) == 0
-        ).astype("int32")
+        ).astype(np.int32)
 
         # Create design matrices and observation vectors
         team_mats = []
         qb_mats = []
         y_obs = []
 
-        for i in range(num_steps + 1):
+        for i in range(num_steps):
             team_x, qb_x = self.build_design_matrices(week_data[i])
             team_mats.append(team_x)
             qb_mats.append(qb_x)
-            y_obs.append(week_data[i]["result"].values)
+            y_obs.append(week_data[i]["result"].values.astype(np.float32))
 
-        return team_mats, qb_mats, y_obs, is_new_season, num_steps
+        return {
+            "num_steps": num_steps,
+            "is_new_season": is_new_season,
+            "qb_experience": qb_experience,
+            "team_mats": team_mats,
+            "qb_mats": qb_mats,
+            "y_obs": y_obs,
+        }
 
     def build_design_matrices(self, week_data: pd.DataFrame) -> tuple:
         """Build separate design matrices for teams and QBs.
@@ -165,174 +192,232 @@ class StateSpaceModel:
         n_games = len(week_data)
 
         # Team design matrix
-        team_design = np.zeros((n_games, self.num_teams + 1))
+        team_design = np.zeros((n_games, self.num_teams + 1), dtype=np.float32)
 
         # QB design matrix
-        qb_design = np.zeros((n_games, self.num_qbs))
+        qb_design = np.zeros((n_games, self.num_qbs), dtype=np.float32)
 
         for i, row in enumerate(week_data.itertuples()):
             # Teams
             home = int(row.home_idx)
             away = int(row.away_idx)
-            team_design[i, home] += 1
-            team_design[i, away] -= 1
-            team_design[i, self.num_teams] = 1 - row.is_neutral
+            team_design[i, home] = 1.0
+            team_design[i, away] = -1.0
+            team_design[i, self.num_teams] = 1.0 - float(row.is_neutral)
 
             # QBs
             home_qb = int(row.home_qb_idx)
             away_qb = int(row.away_qb_idx)
-            qb_design[i, home_qb] += 1
-            qb_design[i, away_qb] -= 1
+            qb_design[i, home_qb] = 1.0
+            qb_design[i, away_qb] = -1.0
 
         return team_design, qb_design
 
-    def build_model(
-        self,
-        team_mats: list,
-        qb_mats: list,
-        y_obs: list,
-        is_new_season: np.ndarray,
-        num_steps: int,
-    ) -> pm.Model:
+    def build_model(self, data_dict: dict) -> pm.Model:
         """Build the full PyMC state-space model.
 
         Args:
-            team_mats: List of team design matrices for each week.
-            qb_mats: List of QB design matrices for each week.
-            y_obs: List of observed point differentials for each week.
-            is_new_season: Binary indicators for season transitions.
-            num_steps: Total number of time steps.
+            data_dict: Dictionary returned by prepare_data().
 
         Returns:
             Compiled PyMC model ready for inference.
         """
+        num_steps = data_dict["num_steps"]
+        is_new_season = data_dict["is_new_season"]
+        qb_experience = data_dict["qb_experience"]
+        team_mats = data_dict["team_mats"]
+        qb_mats = data_dict["qb_mats"]
+        y_obs = data_dict["y_obs"]
+
         with pm.Model() as model:
+            # Convert numpy arrays to PyTensor tensors
+            is_new_season_pt = pt.as_tensor(is_new_season, dtype="int32")
+            qb_experience_pt = pt.as_tensor(qb_experience, dtype="float32")
+
             # ---------------------------------------------------
-            # Priors
+            # Global Parameters
             # ---------------------------------------------------
             # Overall model precision
             phi = pm.Gamma("phi", alpha=0.5, beta=0.5 * 100)
 
+            # Home field advantage parameter
+            alpha_hfa = pm.Normal("alpha_hfa", mu=2.0, sigma=0.5)
+
+            # ---------------------------------------------------
+            # Team Strength Dynamics
+            # ---------------------------------------------------
             # Between-season and between-week evolution precision
-            omega_s = pm.Gamma("omega_s", alpha=0.5, beta=0.5 / 16)
-            omega_w = pm.Gamma("omega_w", alpha=0.5, beta=0.5 / 60)
+            omega_team_season = pm.Gamma("omega_team_season", alpha=0.5, beta=0.5 / 16)
+            omega_team_week = pm.Gamma("omega_team_week", alpha=0.5, beta=0.5 / 60)
 
             # Between-season and between-week regression parameters
-            beta_s = pm.Normal("beta_s", mu=0.98, sigma=1)
-            beta_w = pm.Normal("beta_w", mu=0.995, sigma=1)
+            beta_team_season = pm.Normal("beta_team_season", mu=0.98, sigma=1.0)
+            beta_team_week = pm.Normal("beta_team_week", mu=0.995, sigma=1.0)
 
-            # Initial team strength precision and parameters
-            omega_init = pm.Gamma("omega_0", alpha=0.5, beta=0.5 / 6)
-            theta_init = pm.Normal(
-                "theta_0",
-                mu=0,
-                sigma=1 / pt.sqrt(omega_init * phi),
+            # Initial team strength precision
+            omega_team_init = pm.Gamma("omega_team_init", alpha=0.5, beta=0.5 / 6)
+
+            # Initial team strength parameters
+            team_strength_init = pm.Normal(
+                "team_strength_init",
+                mu=0.0,
+                sigma=1.0 / pt.sqrt(omega_team_init * phi),
                 shape=self.num_teams,
             )
 
-            # Team strength innovation
-            theta_innovation = pm.Normal(
-                "theta_innovation", mu=0, sigma=1, shape=(num_steps, self.num_teams)
+            # Team strength random innovations
+            team_innovation = pm.Normal(
+                "team_innovation",
+                mu=0.0,
+                sigma=1.0,
+                shape=(num_steps - 1, self.num_teams),
             )
 
-            # QB ability precision and parameters
-            omega_qb = pm.Gamma("omega_qb", alpha=0.5, beta=0.5 / 16)
-            qb_raw = pm.Normal("qb_raw", mu=0, sigma=1, shape=self.num_qbs)
-            qb_scaled = qb_raw * (1 / pt.sqrt(omega_qb * phi))
-            qb_ability = pm.Deterministic("qb_ability", qb_scaled - pt.mean(qb_scaled))
-
-            # Home field advantage parameter
-            alpha_base = pm.Normal("alpha_base", mu=2, sigma=0.5)
-
-            # ---------------------------------------------------
-            # Team Strength Evolution
-            # ---------------------------------------------------
-            def evolve_theta(
+            def evolve_team_strength(
                 is_new_season_t,
                 innovation_t,
-                theta_prev,
-                beta_s,
-                beta_w,
-                omega_s,
-                omega_w,
-                phi,
+                strength_prev,
+                beta_season,
+                beta_week,
+                omega_season,
+                omega_week,
+                precision,
             ):
-                beta_t = is_new_season_t * beta_s + (1 - is_new_season_t) * beta_w
-                omega_t = is_new_season_t * omega_s + (1 - is_new_season_t) * omega_w
-                g_theta_prev = theta_prev - pt.mean(theta_prev)
-                theta_new = beta_t * g_theta_prev + innovation_t / pt.sqrt(
-                    omega_t * phi
+                """Evolve team strength for one time step."""
+                # Select precision and regression based on season boundary
+                omega_t = (
+                    is_new_season_t * omega_season + (1 - is_new_season_t) * omega_week
                 )
-                return theta_new
+                beta_t = (
+                    is_new_season_t * beta_season + (1 - is_new_season_t) * beta_week
+                )
 
-            is_new_season_pt = pt.as_tensor(is_new_season[1:])
-            theta_sequence, _ = scan(
-                fn=evolve_theta,
-                sequences=[is_new_season_pt, theta_innovation],
-                outputs_info=[theta_init],
-                non_sequences=[beta_s, beta_w, omega_s, omega_w, phi],
+                # Mean-center previous strengths
+                strength_centered = strength_prev - pt.mean(strength_prev)
+
+                # Apply AR(1) evolution with innovation
+                strength_new = beta_t * strength_centered + innovation_t / pt.sqrt(
+                    omega_t * precision
+                )
+                return strength_new
+
+            team_strength_sequence, _ = scan(
+                fn=evolve_team_strength,
+                sequences=[is_new_season_pt[1:], team_innovation],
+                outputs_info=[team_strength_init],
+                non_sequences=[
+                    beta_team_season,
+                    beta_team_week,
+                    omega_team_season,
+                    omega_team_week,
+                    phi,
+                ],
             )
 
-            all_theta = pt.concatenate([theta_init[None, :], theta_sequence], axis=0)
-            pm.Deterministic("theta", all_theta)
+            team_strength_all = pt.concatenate(
+                [team_strength_init[None, :], team_strength_sequence], axis=0
+            )
+            pm.Deterministic("team_strength", team_strength_all)
+
+            # ---------------------------------------------------
+            # QB Strength Dynamics
+            # ---------------------------------------------------
+            # Initial QB strength precision
+            omega_qb_init = pm.Gamma("omega_qb_init", alpha=0.5, beta=0.5 / 16)
+
+            # Initial QB strength parameters
+            experience_factor = pt.minimum(1.0, qb_experience_pt / 48.0)
+            mu_qb_rookie = pm.Normal("mu_qb_rookie", mu=-2, sigma=1)
+            mu_qb_veteran = pm.Normal("mu_qb_veteran", mu=0, sigma=1)
+            mu_qb_by_experience = mu_qb_rookie + experience_factor * (
+                mu_qb_veteran - mu_qb_rookie
+            )
+
+            # QB strength
+            qb_strength_raw = pm.Normal(
+                "qb_strength_raw",
+                mu=mu_qb_by_experience,
+                sigma=1.0 / pt.sqrt(omega_qb_init * phi),
+                shape=self.num_qbs,
+            )
+            qb_strength = pm.Deterministic(
+                "qb_strength", qb_strength_raw - pt.mean(qb_strength_raw)
+            )
 
             # ---------------------------------------------------
             # Likelihood
             # ---------------------------------------------------
-            # Pad both design matrices to same length
+            # Pad design matrices and observations to same length
             max_games = max(x.shape[0] for x in team_mats)
 
-            team_padded = []
-            qb_padded = []
+            team_design_padded = []
+            qb_design_padded = []
             y_padded = []
             mask = []
 
-            for team_x, qb_x, y in zip(team_mats, qb_mats, y_obs):
-                n_games = team_x.shape[0]
-                if n_games < max_games:
-                    pad_size = max_games - n_games
-                    team_pad = np.vstack(
-                        [team_x, np.zeros((pad_size, self.num_teams + 1))]
+            for team_mat, qb_mat, y in zip(team_mats, qb_mats, y_obs):
+                n_games = team_mat.shape[0]
+                pad_size = max_games - n_games
+
+                if pad_size > 0:
+                    team_mat_padded = np.vstack(
+                        [
+                            team_mat,
+                            np.zeros((pad_size, self.num_teams + 1), dtype=np.float32),
+                        ]
                     )
-                    qb_pad = np.vstack([qb_x, np.zeros((pad_size, self.num_qbs))])
-                    y_pad = np.concatenate([y, np.zeros(pad_size)])
-                    m = np.concatenate([np.ones(n_games), np.zeros(pad_size)])
+                    qb_mat_padded = np.vstack(
+                        [qb_mat, np.zeros((pad_size, self.num_qbs), dtype=np.float32)]
+                    )
+                    y_padded_week = np.concatenate(
+                        [y, np.zeros(pad_size, dtype=np.float32)]
+                    )
+                    mask_week = np.concatenate(
+                        [
+                            np.ones(n_games, dtype=np.float32),
+                            np.zeros(pad_size, dtype=np.float32),
+                        ]
+                    )
                 else:
-                    team_pad = team_x
-                    qb_pad = qb_x
-                    y_pad = y
-                    m = np.ones(n_games)
+                    team_mat_padded = team_mat
+                    qb_mat_padded = qb_mat
+                    y_padded_week = y
+                    mask_week = np.ones(n_games, dtype=np.float32)
 
-                team_padded.append(team_pad)
-                qb_padded.append(qb_pad)
-                y_padded.append(y_pad)
-                mask.append(m)
+                team_design_padded.append(team_mat_padded)
+                qb_design_padded.append(qb_mat_padded)
+                y_padded.append(y_padded_week)
+                mask.append(mask_week)
 
-            # Convert to arrays
-            team_all = np.array(team_padded, dtype=np.float32)
-            qb_all = np.array(qb_padded, dtype=np.float32)
-            y_all = np.array(y_padded, dtype=np.float32)
-            mask_all = np.array(mask, dtype=np.float32)
+            # Stack into 3D arrays
+            team_design_array = np.array(team_design_padded, dtype=np.float32)
+            qb_design_array = np.array(qb_design_padded, dtype=np.float32)
+            y_array = np.array(y_padded, dtype=np.float32)
+            mask_array = np.array(mask, dtype=np.float32)
 
-            # Compute team-based predictions: X_team @ [theta; alpha]
-            alpha_tiled = pt.tile(alpha_base, (num_steps + 1, 1))
-            theta_expanded = pt.concatenate([all_theta, alpha_tiled], axis=1)
-            mu_team = pt.batched_dot(team_all, theta_expanded[:, :, None])[:, :, 0]
+            # Compute team component: X_team @ [team_strength; alpha_hfa]
+            alpha_hfa_expanded = pt.tile(alpha_hfa, (num_steps, 1))
+            team_params = pt.concatenate(
+                [team_strength_all, alpha_hfa_expanded], axis=1
+            )
+            mu_team = pt.batched_dot(team_design_array, team_params[:, :, None])[
+                :, :, 0
+            ]
 
-            # Compute QB-based predictions: X_qb @ qb_ability
-            qb_ability_tiled = pt.tile(qb_ability[None, :], (num_steps + 1, 1))
-            mu_qb = pt.batched_dot(qb_all, qb_ability_tiled[:, :, None])[:, :, 0]
+            # Compute QB component: X_qb @ qb_strength
+            qb_params = pt.tile(qb_strength[None, :], (num_steps, 1))
+            mu_qb = pt.batched_dot(qb_design_array, qb_params[:, :, None])[:, :, 0]
 
-            # Total prediction = team strength + HFA + QB ability
-            mu_all = mu_team + mu_qb
-            sigma_step = 1 / pt.sqrt(phi)
+            # Total expected score differential
+            mu_total = mu_team + mu_qb
+            sigma_obs = 1.0 / pt.sqrt(phi)
 
             # Likelihood (only for non-padded observations)
             pm.Normal(
                 "y_obs",
-                mu=mu_all[mask_all == 1],
-                sigma=sigma_step,
-                observed=y_all[mask_all == 1],
+                mu=mu_total[mask_array == 1],
+                sigma=sigma_obs,
+                observed=y_array[mask_array == 1],
             )
 
         return model
@@ -341,7 +426,7 @@ class StateSpaceModel:
         self,
         data: pd.DataFrame,
         draws: int = 1000,
-        tune: int = 7000,
+        tune: int = 9000,
         target_accept: float = 0.95,
         chains: int = 4,
         cores: int = 4,
@@ -350,7 +435,7 @@ class StateSpaceModel:
         """Fit the state-space model to historical game data.
 
         Args:
-            data: DataFrame of historical games (see prepare_data).
+            data: DataFrame of historical games (see prepare_data()).
             draws: Number of posterior samples per chain.
             tune: Number of tuning steps.
             target_accept: Target acceptance probability for NUTS.
@@ -359,12 +444,10 @@ class StateSpaceModel:
             random_seed: Random seed for reproducibility.
         """
         # Prepare data
-        team_mats, qb_mats, y_obs, is_new_season, num_steps = self.prepare_data(data)
+        data_dict = self.prepare_data(data)
 
         # Build model
-        self.model = self.build_model(
-            team_mats, qb_mats, y_obs, is_new_season, num_steps
-        )
+        self.model = self.build_model(data_dict)
 
         # Sample from posterior
         with self.model:
@@ -411,13 +494,14 @@ class StateSpaceModel:
 
         # Extract posterior samples
         phi = self._get_posterior("phi")
-        beta_s = self._get_posterior("beta_s")
-        beta_w = self._get_posterior("beta_w")
-        theta = self._get_posterior("theta")
-        mean_theta = np.mean(theta[:, :, -1, :], axis=-1, keepdims=True)
-        omega_qb = self._get_posterior("omega_qb")
-        qb_ability = self._get_posterior("qb_ability")
-        alpha_base = self._get_posterior("alpha_base")
+        alpha_hfa = self._get_posterior("alpha_hfa")
+        beta_team_season = self._get_posterior("beta_team_season")
+        beta_team_week = self._get_posterior("beta_team_week")
+        team_strength = self._get_posterior("team_strength")
+        team_strength_mean = np.mean(team_strength[:, :, -1, :], axis=1, keepdims=True)
+        qb_strength = self._get_posterior("qb_strength")
+        omega_qb = self._get_posterior("omega_qb_init")
+        mu_qb_rookie = self._get_posterior("mu_qb_rookie")
 
         # Iterate through test data
         results = []
@@ -427,46 +511,51 @@ class StateSpaceModel:
             home_team_idx = self.team_to_idx[row.home_team]
             away_team_idx = self.team_to_idx[row.away_team]
 
-            # Select evolution parameter
-            beta = beta_s if row.week == 1 else beta_w
-            beta = beta[:, :, None]
+            # Compute evolved team strengths
+            beta_team = beta_team_season if row.week == 1 else beta_team_week
+            beta_team = beta_team[:, :, None]
 
-            # Compute team abilities
-            home_team_strength = beta * (
-                theta[:, :, -1, home_team_idx : home_team_idx + 1] - mean_theta
+            home_team_strength = beta_team * (
+                team_strength[:, :, -1, home_team_idx : home_team_idx + 1]
+                - team_strength_mean
             )
-            away_team_strength = beta * (
-                theta[:, :, -1, away_team_idx : away_team_idx + 1] - mean_theta
+            away_team_strength = beta_team * (
+                team_strength[:, :, -1, away_team_idx : away_team_idx + 1]
+                - team_strength_mean
             )
 
-            # Compute QB effects
+            # Compute QB strengths
             if row.home_qb_id in self.qb_to_idx:
                 home_qb_idx = self.qb_to_idx[row.home_qb_id]
-                home_qb_effect = qb_ability[:, :, home_qb_idx : home_qb_idx + 1]
+                home_qb_strength = qb_strength[:, :, home_qb_idx : home_qb_idx + 1]
             else:
-                prior_std = (1 / np.sqrt(omega_qb * phi)).mean()
-                home_qb_effect = np.random.normal(0, prior_std, size=phi.shape)[
-                    :, :, None
-                ]
+                prior_std = np.mean(1.0 / np.sqrt(omega_qb * phi))
+                home_qb_strength = np.random.normal(
+                    loc=mu_qb_rookie[:, :, None],
+                    scale=prior_std,
+                    size=(mu_qb_rookie.shape[0], mu_qb_rookie.shape[1], 1),
+                )
 
             if row.away_qb_id in self.qb_to_idx:
                 away_qb_idx = self.qb_to_idx[row.away_qb_id]
-                away_qb_effect = qb_ability[:, :, away_qb_idx : away_qb_idx + 1]
+                away_qb_strength = qb_strength[:, :, away_qb_idx : away_qb_idx + 1]
             else:
-                prior_std = (1 / np.sqrt(omega_qb * phi)).mean()
-                away_qb_effect = np.random.normal(0, prior_std, size=phi.shape)[
-                    :, :, None
-                ]
+                prior_std = np.mean(1.0 / np.sqrt(omega_qb * phi))
+                away_qb_strength = np.random.normal(
+                    loc=mu_qb_rookie[:, :, None],
+                    scale=prior_std,
+                    size=(mu_qb_rookie.shape[0], mu_qb_rookie.shape[1], 1),
+                )
 
             # Compute home field advantage
-            hfa = (1 - row.is_neutral) * alpha_base[:, :, None]
+            hfa = (1 - row.is_neutral) * alpha_hfa[:, :, None]
 
             # Predicted point differential
             prediction = (
                 home_team_strength
-                + home_qb_effect
+                + home_qb_strength
                 - away_team_strength
-                - away_qb_effect
+                - away_qb_strength
                 + hfa
             ).reshape(-1)
             prediction_percentiles = np.percentile(prediction, list(range(1, 100)))
@@ -492,10 +581,10 @@ class StateSpaceModel:
                     float(away_team_strength.mean()),
                     float(away_team_strength.std()),
                     # QB effects
-                    float(home_qb_effect.mean()),
-                    float(home_qb_effect.std()),
-                    float(away_qb_effect.mean()),
-                    float(away_qb_effect.std()),
+                    float(home_qb_strength.mean()),
+                    float(home_qb_strength.std()),
+                    float(away_qb_strength.mean()),
+                    float(away_qb_strength.std()),
                     # HFA components
                     float(hfa.mean()),
                     float(hfa.std()),
@@ -520,10 +609,10 @@ class StateSpaceModel:
             ]
             # QB effects
             + [
-                "home_qb_effect_mean",
-                "home_qb_effect_std",
-                "away_qb_effect_mean",
-                "away_qb_effect_std",
+                "home_qb_strength_mean",
+                "home_qb_strength_std",
+                "away_qb_strength_mean",
+                "away_qb_strength_std",
             ]
             # HFA components
             + ["hfa_mean", "hfa_std"]

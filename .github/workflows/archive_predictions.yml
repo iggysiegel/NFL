@@ -1,8 +1,8 @@
-name: Archive Predictions Weekly
+name: Archive Predictions
 
 on:
   schedule:
-    - cron: "0 5 * * 1" # Monday, Midnight EST
+    - cron: "0 2 * * 2" # Monday, 9PM EST
   workflow_dispatch:
 
 jobs:
@@ -17,37 +17,35 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup python
-        uses: actions/setup-python@v5
+      - name: Setup miniconda
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.13"
+          activate-environment: nfl
+          environment-file: environment.yml
+          python-version: 3.13
 
-      - name: Install dependencies
+      - name: Verify environment
+        shell: bash -el {0}
         run: |
-          pip install nflreadpy pandas pyarrow arviz pymc
           python -c "import pymc; print(f'PyMC version: {pymc.__version__}')"
           python -c "import nflreadpy; print('nflreadpy installed successfully')"
 
-      - name: Download model artifact
-        uses: dawidd6/action-download-artifact@v3
+      - name: Download artifact
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: fit_model.yml
+          name: model-*
           name_is_regexp: true
-          name: nfl-model-.*
           path: temp-models/
           search_artifacts: true
           if_no_artifact_found: fail
 
-      - name: Move model to correct location
-        id: move_model
+      - name: Move model
         run: |
-          MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f)
+          MODEL_FILE=$(find temp-models/ -name "model_*_*.nc" -type f | sort -V | tail -n 1)
           if [ -n "$MODEL_FILE" ]; then
             mkdir -p models/
             cp "$MODEL_FILE" models/
-            MODEL_BASENAME=$(basename "$MODEL_FILE")
-            echo "model_basename=$MODEL_BASENAME" >> $GITHUB_OUTPUT
-            echo "Moved model: $MODEL_BASENAME"
           else
             echo "Error: No model file found"
             exit 1
@@ -56,43 +54,27 @@ jobs:
 
       - name: Run update script with save flag
         run: |
-          echo "Generating and saving predictions..."
           python -m scripts.update --save-predictions
-          echo "Predictions saved successfully"
-
-      - name: Find saved prediction file
-        id: find_file
-        run: |
-          SEASON_WEEK=$(echo "${{ steps.move_model.outputs.model_basename }}" | grep -oP '\d{4}_\d{2}')
-          PREDICTION_FILE="predictions/state_space_${SEASON_WEEK}.csv"
-          if [ ! -f "$PREDICTION_FILE" ]; then
-            echo "Error: Prediction file $PREDICTION_FILE not found"
-            exit 1
-          fi
-          echo "prediction_file=$PREDICTION_FILE" >> $GITHUB_OUTPUT
-          echo "Found prediction file: $PREDICTION_FILE"
 
       - name: Configure Git
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-      - name: Commit and push to main
+      - name: Commit and push prediction file
         run: |
-          git add ${{ steps.find_file.outputs.prediction_file }}
+          git add predictions/*
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            PRED_FILE=$(basename ${{ steps.find_file.outputs.prediction_file }})
-            git commit -m "Automated prediction update - $(date +'%Y-%m-%d %H:%M:%S UTC') - $PRED_FILE"
-            git push origin main
-            echo "Predictions archived to main branch successfully"
+            git commit -m "Automated prediction update - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
           fi
 
-      - name: Delete all artifacts
+      - name: Delete artifacts
         if: success()
         run: |
-          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate -q '.artifacts[] | select(.name | startswith("nfl-model")) | .id')
+          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate -q '.artifacts[] | select(.name | startswith("model")) | .id')
           if [ -z "$ARTIFACTS" ]; then
             echo "No artifacts found to delete"
           else
@@ -103,8 +85,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Delete all deployments
-        if: success()
+      - name: Delete deployments
         run: |
           DEPLOYMENTS=$(gh api repos/${{ github.repository }}/deployments --paginate -q '.[].id')
           if [ -z "$DEPLOYMENTS" ]; then
@@ -116,10 +97,3 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Archive Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
