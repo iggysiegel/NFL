@@ -53,6 +53,7 @@ jobs:
           rm -rf temp-models/
 
       - name: Run update script with save flag
+        shell: bash -el {0}
         run: |
           python -m scripts.update --save-predictions
 
