@@ -17,7 +17,7 @@ from src.model import StateSpaceModel
 from src.output import Formatter
 from src.paths import MODEL_DIR, PREDICTION_DIR
 
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.6
 
 
 def main():

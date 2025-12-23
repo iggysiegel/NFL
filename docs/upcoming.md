@@ -1,194 +1,279 @@
-[Home](index.html) | [Weekly Predictions](upcoming.html) | [GitHub](https://github.com/iggysiegel/NFL)
+[Home](index.html) | [Weekly Predictions](upcoming.html) | [Github](https://github.com/iggysiegel/NFL) 
 
 ---
 
-**Current Season, Week:** 2025, 14
+**Current Season, Week:** 2025, 16
 
-**Last Updated:** 2025-12-05 14:34:15 UTC
+**Last Updated:** 2025-12-21 10:35:28 EST
 
-## Latest Game Predictions
+---
 
-### MIA @ NYJ
+<div align='center'>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -0.2 |
-| **Market Spread** | +2.5 |
-| **Confidence** | 44.0% |
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/SF.png' width='80' height='80' alt='SF'><img src='images/logos/IND.png' width='80' height='80' alt='IND'></div>
 
-Skip betting (confidence below optimal level)
+**SF** @ **IND**
 
-Bet **HOME (NYJ)** if spread moves to **+5.0** or better
 
-### CIN @ BUF
+**Market Spread:** 5.5
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -8.0 |
-| **Market Spread** | -5.5 |
-| **Confidence** | 44.0% |
+**Predicted Spread:** -0.8
 
-Skip betting (confidence below optimal level)
+**Model Confidence:** <span style='color:green; font-weight:bold;'>80.0%</span>
 
-Bet **HOME (BUF)** if spread moves to **-3.0** or better
+</div>
 
-### DAL @ DET
+---
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -5.5 |
-| **Market Spread** | -3.5 |
-| **Confidence** | 36.0% |
+<div align='center'>
 
-Skip betting (confidence below optimal level)
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/ATL.png' width='80' height='80' alt='ATL'><img src='images/logos/ARI.png' width='80' height='80' alt='ARI'></div>
 
-Bet **HOME (DET)** if spread moves to **-0.5** or better
+**ATL** @ **ARI**
 
-### IND @ JAX
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -0.4 |
-| **Market Spread** | +1.5 |
-| **Confidence** | 30.0% |
+**Market Spread:** 3.0
 
-Skip betting (confidence below optimal level)
+**Predicted Spread:** -0.9
 
-Bet **HOME (JAX)** if spread moves to **+4.5** or better
+**Model Confidence:** <span style='color:green; font-weight:bold;'>62.0%</span>
 
-### LA @ ARI
+</div>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +7.1 |
-| **Market Spread** | +8.5 |
-| **Confidence** | 26.0% |
+---
 
-Skip betting (confidence below optimal level)
+<div align='center'>
 
-Bet **HOME (ARI)** if spread moves to **+12.0** or better
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/NE.png' width='80' height='80' alt='NE'><img src='images/logos/BAL.png' width='80' height='80' alt='BAL'></div>
 
-### TEN @ CLE
+**NE** @ **BAL**
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -6.1 |
-| **Market Spread** | -4.5 |
-| **Confidence** | 24.0% |
 
-Skip betting (confidence below optimal level)
+**Market Spread:** -3.0
 
-Bet **HOME (CLE)** if spread moves to **-0.5** or better
+**Predicted Spread:** -6.3
 
-### NO @ TB
+**Model Confidence:** <span style='color:green; font-weight:bold;'>56.0%</span>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -7.1 |
-| **Market Spread** | -8.5 |
-| **Confidence** | 22.0% |
+</div>
 
-Skip betting (confidence below optimal level)
+---
 
-Bet **AWAY (NO)** if spread moves to **-12.5** or better
+<div align='center'>
 
-### DEN @ LV
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/JAX.png' width='80' height='80' alt='JAX'><img src='images/logos/DEN.png' width='80' height='80' alt='DEN'></div>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +8.9 |
-| **Market Spread** | +7.5 |
-| **Confidence** | 22.0% |
+**JAX** @ **DEN**
 
-Skip betting (confidence below optimal level)
 
-Bet **AWAY (DEN)** if spread moves to **+4.0** or better
+**Market Spread:** -3.5
 
-### PHI @ LAC
+**Predicted Spread:** -0.7
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +1.3 |
-| **Market Spread** | +2.5 |
-| **Confidence** | 22.0% |
+**Model Confidence:** <span style='color:red; font-weight:bold;'>48.0%</span>
 
-Skip betting (confidence below optimal level)
+</div>
 
-Bet **HOME (LAC)** if spread moves to **+6.0** or better
+---
 
-### PIT @ BAL
+<div align='center'>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -6.0 |
-| **Market Spread** | -5.5 |
-| **Confidence** | 10.0% |
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/GB.png' width='80' height='80' alt='GB'><img src='images/logos/CHI.png' width='80' height='80' alt='CHI'></div>
 
-Skip betting (confidence below optimal level)
+**GB** @ **CHI**
 
-Bet **HOME (BAL)** if spread moves to **-1.0** or better
 
-### WAS @ MIN
+**Market Spread:** -1.5
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -2.1 |
-| **Market Spread** | -1.5 |
-| **Confidence** | 10.0% |
+**Predicted Spread:** 0.9
 
-Skip betting (confidence below optimal level)
+**Model Confidence:** <span style='color:red; font-weight:bold;'>44.0%</span>
 
-Bet **HOME (MIN)** if spread moves to **+3.5** or better
+</div>
 
-### HOU @ KC
+---
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -3.2 |
-| **Market Spread** | -3.5 |
-| **Confidence** | 6.0% |
+<div align='center'>
 
-Skip betting (confidence below optimal level)
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/TB.png' width='80' height='80' alt='TB'><img src='images/logos/CAR.png' width='80' height='80' alt='CAR'></div>
 
-Bet **AWAY (HOU)** if spread moves to **-8.0** or better
+**TB** @ **CAR**
 
-### CHI @ GB
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | -6.5 |
-| **Market Spread** | -6.5 |
-| **Confidence** | 4.0% |
+**Market Spread:** 3.0
 
-Skip betting (confidence below optimal level)
+**Predicted Spread:** 1.4
 
-Bet **HOME (GB)** if spread moves to **-1.5** or better
+**Model Confidence:** <span style='color:red; font-weight:bold;'>30.0%</span>
 
-### SEA @ ATL
+</div>
 
-| Metric | Value |
-|--------|-------|
-| **Predicted Spread** | +7.2 |
-| **Market Spread** | +7.0 |
-| **Confidence** | 0.0% |
+---
 
-Skip betting (confidence below optimal level)
+<div align='center'>
 
-Bet **HOME (ATL)** if spread moves to **+12.5** or better
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/LA.png' width='80' height='80' alt='LA'><img src='images/logos/SEA.png' width='80' height='80' alt='SEA'></div>
 
-## Seasonal ATS Accuracy
+**LA** @ **SEA**
 
-| Season | Close Bets | Close Acc | Open Bets | Open Acc |
-|--------|------------|-----------|-----------|----------|
-| 2015 | 9 | 55.6% | 5 | 60.0% |
-| 2016 | 3 | 33.3% | 8 | 25.0% |
-| 2017 | 13 | 30.8% | 12 | 58.3% |
-| 2018 | 19 | 57.9% | 16 | 68.8% |
-| 2019 | 17 | 52.9% | 13 | 53.8% |
-| 2020 | 24 | 62.5% | 19 | 68.4% |
-| 2021 | 14 | 64.3% | 16 | 62.5% |
-| 2022 | 27 | 48.1% | 29 | 44.8% |
-| 2023 | 13 | 69.2% | 16 | 68.8% |
-| 2024 | 27 | 55.6% | 21 | 47.6% |
-| 2025 | 3 | 33.3% | 4 | 50.0% |
-| **OVERALL** | **169** | **54.4%** | **159** | **56.0%** |
+
+**Market Spread:** -1.5
+
+**Predicted Spread:** -2.9
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>28.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/LAC.png' width='80' height='80' alt='LAC'><img src='images/logos/DAL.png' width='80' height='80' alt='DAL'></div>
+
+**LAC** @ **DAL**
+
+
+**Market Spread:** -1.5
+
+**Predicted Spread:** 0.0
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>28.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/PIT.png' width='80' height='80' alt='PIT'><img src='images/logos/DET.png' width='80' height='80' alt='DET'></div>
+
+**PIT** @ **DET**
+
+
+**Market Spread:** -7.0
+
+**Predicted Spread:** -5.8
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>22.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/CIN.png' width='80' height='80' alt='CIN'><img src='images/logos/MIA.png' width='80' height='80' alt='MIA'></div>
+
+**CIN** @ **MIA**
+
+
+**Market Spread:** 4.5
+
+**Predicted Spread:** 3.0
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>20.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/BUF.png' width='80' height='80' alt='BUF'><img src='images/logos/CLE.png' width='80' height='80' alt='CLE'></div>
+
+**BUF** @ **CLE**
+
+
+**Market Spread:** 10.5
+
+**Predicted Spread:** 11.4
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>14.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/LV.png' width='80' height='80' alt='LV'><img src='images/logos/HOU.png' width='80' height='80' alt='HOU'></div>
+
+**LV** @ **HOU**
+
+
+**Market Spread:** -14.5
+
+**Predicted Spread:** -15.2
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>14.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/KC.png' width='80' height='80' alt='KC'><img src='images/logos/TEN.png' width='80' height='80' alt='TEN'></div>
+
+**KC** @ **TEN**
+
+
+**Market Spread:** 2.5
+
+**Predicted Spread:** 3.1
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>8.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/NYJ.png' width='80' height='80' alt='NYJ'><img src='images/logos/NO.png' width='80' height='80' alt='NO'></div>
+
+**NYJ** @ **NO**
+
+
+**Market Spread:** -6.5
+
+**Predicted Spread:** -7.0
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>6.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/PHI.png' width='80' height='80' alt='PHI'><img src='images/logos/WAS.png' width='80' height='80' alt='WAS'></div>
+
+**PHI** @ **WAS**
+
+
+**Market Spread:** 7.0
+
+**Predicted Spread:** 7.0
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>4.0%</span>
+
+</div>
+
+---
+
+<div align='center'>
+
+<div style='display:flex; align-items:center; justify-content:center; gap:40px; margin-bottom:12px;'><img src='images/logos/MIN.png' width='80' height='80' alt='MIN'><img src='images/logos/NYG.png' width='80' height='80' alt='NYG'></div>
+
+**MIN** @ **NYG**
+
+
+**Market Spread:** 2.5
+
+**Predicted Spread:** 2.5
+
+**Model Confidence:** <span style='color:red; font-weight:bold;'>2.0%</span>
+
+</div>
