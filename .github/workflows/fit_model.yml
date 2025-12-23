@@ -44,7 +44,7 @@ jobs:
             echo "Error: No model file found"
             exit 1
           fi
-          echo "Model file: $MODEL_FILE""
+          echo "Model file: $MODEL_FILE"
           echo "model_file=$MODEL_FILE" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
