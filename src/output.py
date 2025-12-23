@@ -31,7 +31,7 @@ class Formatter:
         nav_bar = (
             "[Home](index.html) | "
             "[Weekly Predictions](upcoming.html) | "
-            "[Github](https://github.com/iggysiegel/NFL)"
+            "[GitHub](https://github.com/iggysiegel/NFL)"
         )
 
         if self.format == "text":
