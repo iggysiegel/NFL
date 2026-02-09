@@ -1,8 +1,8 @@
 name: Fit Model
 
 on:
-  schedule:
-    - cron: "0 10 * * 2" # Tuesday, 5AM EST
+  # schedule:
+  #   - cron: "0 10 * * 2" # Tuesday, 5AM EST
   workflow_dispatch:
 
 jobs:

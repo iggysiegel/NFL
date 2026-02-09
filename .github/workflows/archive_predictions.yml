@@ -1,8 +1,8 @@
 name: Archive Predictions
 
 on:
-  schedule:
-    - cron: "0 2 * * 1" # Sunday, 9PM EST
+  # schedule:
+  #   - cron: "0 2 * * 1" # Sunday, 9PM EST
   workflow_dispatch:
 
 jobs:

@@ -1,10 +1,10 @@
 name: Update Website
 
 on:
-  workflow_run:
-    workflows: ["Fit Model"]
-    types:
-      - completed
+  # workflow_run:
+  #   workflows: ["Fit Model"]
+  #   types:
+  #     - completed
   workflow_dispatch:
 
 jobs:
